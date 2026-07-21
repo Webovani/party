@@ -1,0 +1,56 @@
+<main class="app" data-controller="connection">
+  <header class="topbar">
+    <div class="brand">🎉 Party</div>
+    <span class="conn" data-connection-target="badge" hidden></span>
+    <div class="me">
+      <span class="nick"><%= current_nick %></span>
+      <%= button_to "Leave", session_path, method: :delete, class: "linkbtn", form: { class: "inline" } %>
+    </div>
+  </header>
+
+  <div class="scroll">
+    <section class="search">
+      <%# Permanent so live broadcasts (morph) never reset the query or scope. %>
+      <div id="search-controls" data-turbo-permanent>
+        <%= form_with url: search_path, method: :get, id: "search-form",
+              data: { controller: "search", turbo_frame: "search_results" } do |f| %>
+          <div class="search-input-wrap">
+            <%= f.search_field :q, placeholder: "Search local library & YouTube…",
+                  autocomplete: "off", value: params[:q],
+                  data: { search_target: "input", action: "input->search#submit input->search#toggleClear" } %>
+            <button type="button" class="search-clear" data-search-target="clear"
+                    data-action="search#clearQuery" aria-label="Clear search" hidden>✕</button>
+          </div>
+          <%# Hidden scope fields (browse/artist/album/path) injected by the scope controller. %>
+          <div id="search-scope-fields"></div>
+          <div id="search-scope-chip" class="scope-chip" hidden>
+            <span class="scope-chip-in">In:</span>
+            <span class="scope-chip-label" data-scope-chip-label></span>
+            <button type="button" class="scope-chip-x" data-action="search#clearScope"
+                    title="Search everywhere">✕</button>
+          </div>
+        <% end %>
+        <nav class="tabs">
+          <%= link_to "Library", library_path(browse: "artists"), class: "tab", data: { turbo_frame: "search_results" } %>
+          <%= link_to "History", history_path, class: "tab", data: { turbo_frame: "search_results" } %>
+        </nav>
+      </div>
+      <turbo-frame id="search_results" data-turbo-permanent>
+        <%= render "shared/scope", scope: nil %>
+        <%= render "search/results", sections: [], query: params[:q], scope: nil %>
+      </turbo-frame>
+    </section>
+
+    <section class="queue">
+      <div id="queue">
+        <%= render "party/queue", queue: @queue %>
+      </div>
+    </section>
+  </div>
+
+  <footer class="player-bar">
+    <div id="now-playing">
+      <%= render "party/now_playing", player: @player, current_item: @current_item, votes_to_skip: @votes_to_skip %>
+    </div>
+  </footer>
+</main>

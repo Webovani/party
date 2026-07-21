@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+# Party player daemon: owns an mpv process and drives the shared queue.
+# Run alongside the web server (see Procfile.dev / bin/dev).
+require_relative "../config/environment"
+
+$stdout.sync = true
+Rails.logger.info("[player] booting…")
+PlayerDaemon.new.run

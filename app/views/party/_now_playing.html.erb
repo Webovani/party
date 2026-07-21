@@ -1,0 +1,62 @@
+<% track = current_item&.track %>
+<div class="np"
+     data-controller="progress"
+     data-progress-position-ms-value="<%= player.position_ms %>"
+     data-progress-duration-ms-value="<%= player.duration_ms %>"
+     data-progress-playing-value="<%= player.playing? %>">
+
+  <div class="np-top">
+    <% if track %>
+      <% if track.thumbnail_url.present? %>
+        <img src="<%= track.thumbnail_url %>" class="np-art" alt="">
+      <% else %>
+        <div class="np-art np-art-placeholder"><%= track.local? ? "♪" : "▶" %></div>
+      <% end %>
+      <div class="np-meta">
+        <div class="np-title"><%= track.title %></div>
+        <div class="np-artist"><%= [track.artist, "added by #{current_item.queued_by}"].compact.join(" · ") %></div>
+      </div>
+    <% else %>
+      <div class="np-art np-art-placeholder">🎧</div>
+      <div class="np-meta">
+        <div class="np-title"><%= player.playing? ? "Waiting for tracks…" : "Nothing playing" %></div>
+        <div class="np-artist muted">Add a track to get the party started</div>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="np-progress" data-progress-target="bar" data-action="click->progress#seekClick">
+    <div class="np-progress-fill" data-progress-target="fill"></div>
+  </div>
+  <div class="np-times">
+    <span data-progress-target="elapsed">0:00</span>
+    <span class="muted"><%= format_ms(player.duration_ms) || "—" %></span>
+  </div>
+
+  <div class="np-controls">
+    <% if player.playing? %>
+      <%= button_to player_pause_path, class: "cbtn", form: { class: "inline" },
+            aria: { label: "Pause" } do %><%= player_icon(:pause) %><% end %>
+    <% else %>
+      <%= button_to player_play_path, class: "cbtn cbtn-primary", form: { class: "inline" },
+            aria: { label: "Play" } do %><%= player_icon(:play) %><% end %>
+    <% end %>
+
+    <div class="skip">
+      <%= button_to skip_votes_path, class: "cbtn", form: { class: "inline" },
+            disabled: current_item.nil?, aria: { label: "Vote to skip" } do %><%= player_icon(:next) %><% end %>
+      <% if current_item %>
+        <span class="votes">skip votes <%= current_item.skip_vote_count %>/<%= votes_to_skip %></span>
+      <% end %>
+    </div>
+
+    <div class="volume" data-controller="volume"
+         data-volume-url-value="<%= player_volume_path %>"
+         data-volume-level-value="<%= player.volume %>">
+      <%= player_icon(:volume) %>
+      <button type="button" class="volbtn" data-action="volume#down" aria-label="Quieter">−</button>
+      <span class="vollevel" data-volume-target="display"><%= player.volume %>%</span>
+      <button type="button" class="volbtn" data-action="volume#up" aria-label="Louder">+</button>
+    </div>
+  </div>
+</div>

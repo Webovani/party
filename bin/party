@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Control the Party services (systemd user units) from ANY shell.
+#
+#   party <start|stop|restart|status|enable|disable|logs> [web|jobs|player|all]
+#
+# Examples:
+#   party restart player     # bounce the player — WAITS for the current song to end
+#   party restart player now # bounce it immediately (force, cuts the song off)
+#   party restart all        # bounce everything (default part is 'all')
+#   party status
+#   party logs player        # follow the player's journal
+#
+# Note: `restart player` is graceful — systemd sends SIGTERM and the daemon lets the
+# current song finish before exiting, so the restart lands at a song boundary.
+# Add `now` to force an immediate restart instead.
+#
+# Works from a non-login/ssh shell by ensuring the user systemd bus is reachable.
+set -euo pipefail
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+
+cmd="${1:-status}"
+part="${2:-all}"
+
+case "$part" in
+  all)            units=(party-web party-jobs party-player) ;;
+  web|jobs|player) units=("party-$part") ;;
+  *) echo "unknown part '$part' (use: web | jobs | player | all)" >&2; exit 1 ;;
+esac
+
+# `party restart <part> now` -> force immediate: SIGKILL the process; Restart=on-failure
+# brings it straight back (bypasses the graceful wait-for-song).
+if [ "$cmd" = restart ] && [ "${3:-}" = now ]; then
+  exec systemctl --user kill -s SIGKILL "${units[@]}"
+fi
+
+case "$cmd" in
+  logs)
+    if [ "$part" = all ]; then
+      exec journalctl --user -f -u party-web -u party-jobs -u party-player
+    else
+      exec journalctl --user -f -u "party-$part"
+    fi
+    ;;
+  start|stop|restart|status|enable|disable)
+    exec systemctl --user "$cmd" "${units[@]}"
+    ;;
+  *)
+    echo "usage: party <start|stop|restart|status|enable|disable|logs> [web|jobs|player|all]" >&2
+    exit 1
+    ;;
+esac

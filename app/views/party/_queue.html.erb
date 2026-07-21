@@ -1,0 +1,18 @@
+<div class="queue-list">
+  <div class="queue-head">
+    <h2>Up next <span class="count"><%= queue.size %></span></h2>
+    <% if false # queue.size > 1 %>
+      <%= button_to "🔀 Shuffle", reshuffle_queue_items_path, class: "linkbtn", form: { class: "inline" } %>
+    <% end %>
+  </div>
+
+  <% if queue.empty? %>
+    <p class="muted">Queue is empty — search above and add something!</p>
+  <% else %>
+    <ol class="qitems">
+      <% queue.each_with_index do |item, i| %>
+        <%= render "party/queue_item", item: item, first: i.zero? %>
+      <% end %>
+    </ol>
+  <% end %>
+</div>

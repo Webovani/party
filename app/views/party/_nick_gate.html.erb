@@ -1,0 +1,12 @@
+<div class="gate">
+  <div class="gate-card">
+    <div class="gate-logo">🎉</div>
+    <h1>Party</h1>
+    <p>Pick a nickname to search and queue music.</p>
+    <%= form_with url: session_path, method: :post, class: "gate-form" do |f| %>
+      <%= f.text_field :nick, placeholder: "Your nickname", autofocus: true,
+            maxlength: 32, autocomplete: "off", inputmode: "text" %>
+      <%= f.submit "Join the party" %>
+    <% end %>
+  </div>
+</div>

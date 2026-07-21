@@ -1,0 +1,23 @@
+<li class="qitem" id="<%= dom_id(item) %>">
+  <% if item.track.thumbnail_url.present? %>
+    <img src="<%= item.track.thumbnail_url %>" class="qart" alt="" loading="lazy">
+  <% else %>
+    <div class="qart qart-placeholder"><%= item.track.local? ? "♪" : "▶" %></div>
+  <% end %>
+
+  <div class="qmeta">
+    <div class="qtitle"><%= item.track.title %></div>
+    <div class="qsub">
+      <% if item.track.artist.present? %><span><%= item.track.artist %></span> · <% end %>
+      <span class="by"><%= item.queued_by %></span>
+      <%= render "party/cache_badge", track: item.track %>
+    </div>
+  </div>
+
+  <% unless first %>
+    <div class="qactions">
+      <%= button_to "⤒", move_to_front_queue_item_path(item), class: "iconbtn",
+            form: { class: "inline", title: "Play next" } if current_user&.can_move? %>
+    </div>
+  <% end %>
+</li>

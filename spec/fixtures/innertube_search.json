@@ -1,0 +1,52 @@
+{
+  "contents": {
+    "twoColumnSearchResultsRenderer": {
+      "primaryContents": {
+        "sectionListRenderer": {
+          "contents": [
+            {
+              "itemSectionRenderer": {
+                "contents": [
+                  {
+                    "videoRenderer": {
+                      "videoId": "K4DyBUG242c",
+                      "title": { "runs": [ { "text": "Daft Punk - Around the World (Official Video)" } ] },
+                      "lengthText": { "simpleText": "7:08" },
+                      "longBylineText": {
+                        "runs": [ {
+                          "text": "Daft Punk",
+                          "navigationEndpoint": { "browseEndpoint": { "browseId": "UC_kRDkYrLZQdHYqRQKA9wsQ" } }
+                        } ]
+                      },
+                      "thumbnail": { "thumbnails": [
+                        { "url": "https://i.ytimg.com/vi/K4DyBUG242c/hq.jpg?sqp=abc", "width": 480 }
+                      ] }
+                    }
+                  },
+                  {
+                    "videoRenderer": {
+                      "videoId": "s9MszVE7aR4",
+                      "title": { "simpleText": "Daft Punk - Harder Better Faster Stronger" },
+                      "lengthText": { "simpleText": "3:45" },
+                      "shortBylineText": { "runs": [ { "text": "DaftPunkVEVO" } ] },
+                      "thumbnail": { "thumbnails": [ { "url": "https://i.ytimg.com/vi/s9MszVE7aR4/default.jpg" } ] }
+                    }
+                  },
+                  {
+                    "videoRenderer": {
+                      "videoId": "private1",
+                      "title": { "simpleText": "[Private video]" }
+                    }
+                  },
+                  {
+                    "promotedVideoRenderer": { "videoId": "ad1" }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

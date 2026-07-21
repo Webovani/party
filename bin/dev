@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Starts the whole party stack: web (Puma), job worker (Solid Queue), and the
+# player daemon (mpv). Requires foreman: `gem install foreman`.
+set -e
+
+if ! gem list foreman -i --silent > /dev/null 2>&1; then
+  echo "Installing foreman…"
+  gem install foreman
+fi
+
+exec foreman start -f Procfile.dev "$@"

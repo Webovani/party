@@ -1,0 +1,12 @@
+<%# Invisible element rendered in every frame; on connect it syncs the current
+    browse scope into the persistent search form (hidden fields + "In:" chip).
+    `listing` marks a browse/history view (vs search results): navigating to a
+    listing clears the search box so it matches what's shown. %>
+<div data-controller="scope"
+     data-scope-browse-value="<%= scope&.dig(:browse) %>"
+     data-scope-artist-value="<%= scope&.dig(:artist) %>"
+     data-scope-album-value="<%= scope&.dig(:album) %>"
+     data-scope-path-value="<%= scope&.dig(:path) %>"
+     data-scope-label-value="<%= scope&.dig(:label) %>"
+     data-scope-listing-value="<%= local_assigns[:listing] ? true : false %>"
+     hidden></div>

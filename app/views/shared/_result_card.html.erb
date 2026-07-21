@@ -1,0 +1,30 @@
+<li class="result">
+  <% if result[:thumbnail_url].present? %>
+    <img src="<%= result[:thumbnail_url] %>" class="result-art" alt="" loading="lazy">
+  <% else %>
+    <div class="result-art result-art-placeholder"><%= result[:source] == "local" ? "♪" : "▶" %></div>
+  <% end %>
+  <div class="result-meta">
+    <div class="result-title"><%= result[:title] %></div>
+    <div class="result-sub muted">
+      <%= [result[:artist], format_ms(result[:duration_ms])].compact.join(" · ").presence || "—" %>
+    </div>
+    <% if result[:source] == "local" %>
+      <% album = local_album_nav(result); folder = local_folder_nav(result) %>
+      <% if album || folder %>
+        <div class="result-nav">
+          <% if album %>
+            <%= link_to library_path(album[:params]), class: "result-navlink",
+                  title: "Go to album", data: { turbo_frame: "search_results" } do %>💿 <%= album[:label] %><% end %>
+          <% end %>
+          <% if folder %>
+            <%= link_to library_path(folder[:params]), class: "result-navlink",
+                  title: "Go to folder", data: { turbo_frame: "search_results" } do %>📁 <%= folder[:label] %><% end %>
+          <% end %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+  <%= button_to queue_items_path, params: result_params(result),
+        class: "addbtn", form: { class: "inline", title: "Add to queue" } do %>＋<% end %>
+</li>

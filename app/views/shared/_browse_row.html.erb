@@ -1,0 +1,12 @@
+<li class="browse-row">
+  <%= link_to library_path(entry.nav), class: "browse-link", data: { turbo_frame: "search_results" } do %>
+    <span class="browse-icon"><%= { folder: "📁", album: "💿", artist: "🎤" }[entry.kind] %></span>
+    <span class="browse-label"><%= entry.label %></span>
+    <span class="count"><%= entry.count %></span>
+  <% end %>
+  <% if entry.add %>
+    <% add_url = entry.kind == :folder ? add_folder_queue_items_path : add_album_queue_items_path %>
+    <%= button_to add_url, params: entry.add, class: "addbtn",
+          form: { class: "inline", title: "Add all" } do %>＋<% end %>
+  <% end %>
+</li>

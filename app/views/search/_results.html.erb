@@ -1,0 +1,18 @@
+<% scope = local_assigns[:scope] %>
+<% if query.blank? %>
+  <p class="muted search-hint">
+    Type to search <%= scope ? "in #{scope[:label]}" : "your local library and YouTube" %>.
+  </p>
+<% elsif sections.all? { |s| s[:results].empty? } %>
+  <p class="muted">No results<%= " in #{scope[:label]}" if scope %> for “<%= query %>”.</p>
+<% else %>
+  <% sections.each do |section| %>
+    <% next if section[:results].empty? %>
+    <h3 class="source-head">
+      <% if scope %><%= scope[:label] %><% else %><%= section[:source] == "local" ? "Local library" : "YouTube" %><% end %>
+    </h3>
+    <ul class="results">
+      <%= render partial: "shared/result_card", collection: section[:results], as: :result %>
+    </ul>
+  <% end %>
+<% end %>
