@@ -1,4 +1,3 @@
 <%= turbo_frame_tag "search_results" do %>
-  <%= render "shared/scope", scope: @scope %>
-  <%= render "search/results", sections: @sections, query: @query, scope: @scope %>
+  <%= render "shared/frame_content" %>
 <% end %>

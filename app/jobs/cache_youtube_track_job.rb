@@ -30,6 +30,8 @@ class CacheYoutubeTrackJob < ApplicationJob
 
   def mark_ready(track, path)
     track.update!(cache_path: path, cache_status: "ready", last_error: nil, cache_attempts: 0)
+    # The file only exists now, so this is the first chance to measure it.
+    AnalyzeLoudnessJob.perform_later(track.id) unless track.loudness_measured?
     PartyBroadcaster.refresh
   end
 
@@ -42,7 +44,10 @@ class CacheYoutubeTrackJob < ApplicationJob
     track.update(cache_status: "error", last_error: error.message.to_s.first(500), cache_attempts: attempts)
 
     if attempts >= MAX_ATTEMPTS
-      removed = QueueItem.where(track_id: track.id, state: %w[queued playing]).destroy_all
+      # active == queued + promoted + playing. "promoted" matters: a broken video
+      # that someone hit "play next" on parks at the head, and the daemon waits on
+      # an unready head rather than skipping it — playback would stall for good.
+      removed = QueueItem.active.where(track_id: track.id).destroy_all
       if removed.present?
         Rails.logger.warn(
           "[CacheYoutubeTrackJob] dropping #{track.source_uid} from queue after #{attempts} failed downloads"

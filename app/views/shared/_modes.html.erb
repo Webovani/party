@@ -1,0 +1,19 @@
+<%# Library sub-modes. Rendered from frame_content, not from the library listing,
+    so they survive a search — otherwise searching inside Albums dropped the row
+    and there was no way to switch mode without abandoning the query. While a
+    query is active the links carry it, so switching mode re-runs the search
+    there rather than throwing it away. %>
+<% mode = library_mode(@scope || current_browse_scope) %>
+<% if mode %>
+  <% query = params[:q].presence %>
+  <div class="browse-head">
+    <div class="browse-modes">
+      <% { all: "All", artists: "Artists", albums: "Albums", folders: "Folders" }.each do |key, label| %>
+        <%= link_to label,
+              query ? search_path(q: query, browse: key) : library_path(browse: key),
+              class: class_names("mode", active: key == mode),
+              data: { turbo_frame: "search_results" } %>
+      <% end %>
+    </div>
+  </div>
+<% end %>

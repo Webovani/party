@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title><%= content_for(:title) || "Party" %></title>
+    <title><%= content_for(:title) || document_title(@player, @current_item) %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="application-name" content="Party">
@@ -10,6 +10,14 @@
     <%# Broadcast page refreshes morph the DOM in place (preserves scroll & permanents) %>
     <meta name="turbo-refresh-method" content="morph">
     <meta name="turbo-refresh-scroll" content="preserve">
+    <%# No snapshot cache. Browsing advances the URL from inside a turbo-frame, and
+        Turbo swaps the frame content BEFORE running the visit that updates history —
+        so the snapshot it caches under the URL you are leaving already contains the
+        content of the page you moved to. Going back then replayed the wrong step.
+        Every browse URL renders itself completely server-side (see
+        ApplicationController#render_frame_or_page), so restoring by re-fetching is
+        both correct and cheap on a LAN. %>
+    <meta name="turbo-cache-control" content="no-cache">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 

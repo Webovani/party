@@ -1,6 +1,10 @@
 class QueueItem < ApplicationRecord
   STATES = %w[queued promoted playing played skipped].freeze
 
+  # Mirrors config/party.yml; fetched with a default so a process older than the
+  # config file degrades instead of raising.
+  FILLER_MIN_DURATION_MS = 12 * 60 * 1000
+
   belongs_to :track
   has_many :skip_votes, dependent: :destroy
 
@@ -8,16 +12,24 @@ class QueueItem < ApplicationRecord
   validates :state, inclusion: { in: STATES }
 
   before_validation :assign_position, on: :create
+  before_validation :flag_filler, on: :create
 
   # Re-deal the queue once per transaction rather than once per row, so a bulk add
   # (an album/folder) pays for a single pass instead of one per track.
   after_create   :request_reorder
+  # Removals change a nick's share of the queue, so re-deal: covers a guest
+  # pulling their own song and an undownloadable YouTube track being dropped
+  # (CacheYoutubeTrackJob). destroy_all coalesces into one re-deal like a bulk add.
+  after_destroy  :request_reorder
   before_commit  :reorder_if_requested
   after_rollback :forget_reorder_request
 
   scope :playing, -> { where(state: ['playing']) }
   scope :queued, ->  { where(state: ['queued']).order(:position) }
-  scope :waiting, -> { where(state: ['queued', 'promoted']).order(:position) }
+  # Filler sorts behind everything, so `head` only reaches one when nothing else
+  # is waiting. Ordering by the column (not just by dealt position) keeps that
+  # true even for a row that arrived after the last re-deal.
+  scope :waiting, -> { where(state: ['queued', 'promoted']).order(:filler, :position) }
   scope :active,  -> { where(state: ['queued', 'promoted', 'playing']).order(:position) }
 
   # Whether a re-deal is pending for the current transaction (thread-local, so it
@@ -34,7 +46,22 @@ class QueueItem < ApplicationRecord
     return if list.empty?
 
     transaction do
-      deal!(list)
+      fillers, normal = list.partition(&:filler?)
+      deal!(normal) if normal.any?
+      park_fillers!(fillers, normal)
+    end
+  end
+
+  # Filler never joins the round-robin: it is what plays when nobody else wants
+  # the slot, so it must not consume a nick's turn or be interleaved. It sits
+  # after every normal item, keeping its own relative order.
+  def self.park_fillers!(fillers, normal)
+    return if fillers.empty?
+
+    position = (normal.filter_map(&:position).max || 0) + 1
+    fillers.sort_by { |i| [i.position || 0, i.id] }.each do |item|
+      item.update!(position: position)
+      position += 1
     end
   end
 
@@ -141,6 +168,15 @@ class QueueItem < ApplicationRecord
 
   def forget_reorder_request
     self.class.reorder_requested = false
+  end
+
+  # Long tracks (a mix) are demoted automatically — see filler_min_duration_ms.
+  # Decided once, at add time, so changing the threshold later doesn't reshuffle
+  # a queue people are already looking at.
+  def flag_filler
+    minimum = PartyConfig.fetch(:filler_min_duration_ms, FILLER_MIN_DURATION_MS).to_i
+    self.filler = track&.duration_ms.to_i >= minimum
+    true
   end
 
   def assign_position

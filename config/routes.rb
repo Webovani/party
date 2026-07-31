@@ -19,7 +19,7 @@ Rails.application.routes.draw do
   get "search", to: "search#index"
 
   # The shared live queue
-  resources :queue_items, only: %i[create] do
+  resources :queue_items, only: %i[create destroy] do
     member do
       post :move_to_front
     end

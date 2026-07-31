@@ -1,41 +1,27 @@
 import { Controller } from "@hotwired/stimulus"
 
-// Rendered (hidden) inside every search_results frame. On connect it pushes the
-// frame's current browse scope into the persistent search form: hidden fields so
-// the next search is scoped, and an "In: <label>" chip that also escapes browsing.
+// Rendered (hidden) inside every search_results frame. Frame navigation does not
+// re-render the search controls above, so this pushes the frame's browse scope
+// into the form's hidden fields, keeping the next search scoped. On a full page
+// load the server already rendered them; both derive from the same scope.
+//
+// The input's placeholder and value are handled by search_sync.js instead — they
+// live inside a data-turbo-permanent element, which needs ordering guarantees a
+// controller in here cannot give.
 export default class extends Controller {
   static values = {
-    browse: String, artist: String, album: String, path: String, label: String,
-    listing: Boolean
+    browse: String, artist: String, album: String, path: String
   }
 
   connect() {
-    // Navigating to a browse/history listing clears the search box so it matches
-    // what's shown (rather than leaving a stale query behind).
-    if (this.listingValue) {
-      const input = document.querySelector('#search-form input[type="search"]')
-      const clear = document.querySelector("#search-form .search-clear")
-      if (input) input.value = ""
-      if (clear) clear.hidden = true
-    }
-
     const fields = document.getElementById("search-scope-fields")
-    const chip = document.getElementById("search-scope-chip")
-    if (!fields || !chip) return
+    if (!fields) return
 
     fields.replaceChildren()
     this.addField(fields, "browse", this.browseValue)
     this.addField(fields, "artist", this.artistValue)
     this.addField(fields, "album", this.albumValue)
     this.addField(fields, "path", this.pathValue)
-
-    if (this.labelValue) {
-      const label = chip.querySelector("[data-scope-chip-label]")
-      if (label) label.textContent = this.labelValue
-      chip.hidden = false
-    } else {
-      chip.hidden = true
-    }
   }
 
   addField(container, name, value) {

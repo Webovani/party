@@ -1,14 +1,18 @@
 class SearchController < ApplicationController
   def index
-    # Search results are only meant to load into the frame on the main page.
-    # A direct (full-page) visit should land on the app, not the bare frame.
-    return redirect_to(root_path(q: params[:q])) unless turbo_frame_request?
-
     @query = params[:q].to_s.strip
     @scope = current_browse_scope
 
-    # Clearing the query while scoped returns to that view (browse or history).
+    # Clearing the query while scoped returns to that view (browse or history);
+    # unscoped, it goes home — so an empty search never lands in history as a
+    # bare /search?q= entry to back through.
     return redirect_to(scope_return_path(@scope)) if @query.blank? && @scope
+    return redirect_to(root_path) if @query.blank?
+
+    # A scoped search answers with the collections that match as well as the songs
+    # inside them: searching "abba" under Albums should surface the ABBA albums,
+    # not only the individual tracks.
+    @entries = @scope ? LocalLibrary.new.search_entries(@scope, @query) : []
 
     @sections =
       if @query.blank?
@@ -21,6 +25,9 @@ class SearchController < ApplicationController
       else
         Sources::Registry.search_all(@query, limit: 25)
       end
+
+    @frame_partial = "search/frame"
+    render_frame_or_page
   end
 
   private
@@ -28,7 +35,7 @@ class SearchController < ApplicationController
   # Search within the active scope, preserving each track's real source.
   def scoped_results(scope, query)
     base = scope[:browse] == "history" ? Track.history : LocalLibrary.new.scope_base(scope)
-    base.search(query).limit(50).map(&:to_search_result)
+    base.matching(query).limit(50).map(&:to_search_result)
   end
 
   def scope_return_path(scope)

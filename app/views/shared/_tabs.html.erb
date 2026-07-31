@@ -1,0 +1,12 @@
+<%# Inside the frame on purpose: the frame is re-rendered on every navigation, so
+    the active tab is always server-correct. In the (permanent, never re-rendered)
+    controls above it, this would go stale exactly like the old scope chip did. %>
+<% active = active_browse_tab(@scope || current_browse_scope) %>
+<nav class="tabs">
+  <%= link_to root_path, class: class_names("tab", "tab-home", active: active == :home),
+        title: "Search everywhere", data: { turbo_frame: "search_results" } do %>⌂<% end %>
+  <%= link_to "Library", library_path(browse: "all"),
+        class: class_names("tab", active: active == :library), data: { turbo_frame: "search_results" } %>
+  <%= link_to "History", history_path,
+        class: class_names("tab", active: active == :history), data: { turbo_frame: "search_results" } %>
+</nav>

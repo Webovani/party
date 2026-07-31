@@ -1,0 +1,17 @@
+<%# One badge for the whole "can this play yet?" pipeline: download (YouTube only)
+    → loudness measurement → ready. Nothing starts before the last step, because
+    the daemon parks on anything that isn't playable, so this badge is the answer
+    to "why hasn't my song started". %>
+<% if track.youtube? && track.cache_status == "error" %>
+  <span class="badge err" title="<%= track.last_error %>">failed</span>
+<% elsif !track.ready_to_play? %>
+  <% if track.local? %>
+    <span class="badge err" title="File not found — is the music drive mounted?">missing</span>
+  <% else %>
+    <span class="badge wait"><%= track.cache_status == "pending" ? "downloading…" : "queued" %></span>
+  <% end %>
+<% elsif !track.loudness_measured? %>
+  <span class="badge wait" title="Measuring loudness — it will not play until this is known, so it can't start at full volume">measuring…</span>
+<% else %>
+  <span class="badge ok">ready</span>
+<% end %>

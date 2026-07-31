@@ -28,6 +28,17 @@ class ApplicationController < ActionController::Base
 
     if browse == "history"
       { browse: "history", label: "History" }
+    elsif browse == "all"
+      { browse: "all", label: "All songs", nav: { browse: "all" } }
+    elsif browse == "albums"
+      artist = params[:artist].presence
+      album  = params[:album].presence
+      if album
+        { browse: "albums", artist: artist, album: album, label: album,
+          nav: { browse: "albums", artist: artist, album: album } }
+      else
+        { browse: "albums", label: "Albums", nav: { browse: "albums" } }
+      end
     elsif browse == "folders"
       path = params[:path].to_s
       { browse: "folders", path: path, label: path.presence || "Local library",
@@ -52,6 +63,28 @@ class ApplicationController < ActionController::Base
 
   def require_nick
     redirect_to(root_path, alert: "Pick a nickname first.") unless signed_in?
+  end
+
+  # Data the app shell (queue + now-playing) needs, wherever it is rendered from.
+  def load_app_shell
+    User.touch_nick(current_nick) if signed_in?
+    @player = PlayerState.instance
+    @current_item = @player.current_queue_item
+    @queue = QueueItem.waiting
+    @votes_to_skip = PartyConfig[:votes_to_skip].to_i
+  end
+
+  # Browse/search endpoints render into the search_results frame. A non-frame GET
+  # of the same URL renders the WHOLE app with that content already in the frame.
+  # That happens on a deep link, a reload, a history restore — and on every Turbo
+  # morph refresh, which re-fetches whatever URL the browser is currently on. So
+  # keeping browse state in the URL is what makes the frame survive a broadcast;
+  # it is not decoration.
+  def render_frame_or_page
+    return if turbo_frame_request?
+
+    load_app_shell
+    render template: "party/index"
   end
 
   def toast(message, type: :notice)

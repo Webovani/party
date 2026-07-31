@@ -63,6 +63,15 @@ RSpec.describe "Queue flow", type: :request do
     it "moves an item to the front" do
       add_youtube(uid: "first"); add_youtube(uid: "second")
       last = QueueItem.order(:position).last
+      # Only a track that could start right now may be promoted — downloaded AND
+      # measured (see promote_only_cached_spec): the player parks on anything else
+      # rather than starting it at gain 0, i.e. full volume.
+      cached = Rails.root.join("tmp/test_music/promotable.m4a")
+      FileUtils.mkdir_p(cached.dirname)
+      File.write(cached, "x")
+      last.track.update!(cache_status: "ready", cache_path: cached.to_s,
+                        loudness_lufs: -12.0, loudness_lufs_hp: -14.0)
+
       post move_to_front_queue_item_path(last)
       expect(QueueItem.waiting.first).to eq(last)
     end

@@ -10,34 +10,48 @@
 
   <div class="scroll">
     <section class="search">
-      <%# Permanent so live broadcasts (morph) never reset the query or scope. %>
-      <div id="search-controls" data-turbo-permanent>
+      <% scope = @scope || current_browse_scope %>
+      <div id="search-controls">
+        <%# Starting point only — search_controller flips this per submission:
+            "advance" when entering or leaving a search (so Back returns to what
+            you were browsing, and the empty state is its own step), "replace"
+            while refining a non-empty query (so a debounced keystroke doesn't
+            stack an entry each). Defaults to advance: if JS is dead there is no
+            search-as-you-type to stack entries anyway. %>
         <%= form_with url: search_path, method: :get, id: "search-form",
-              data: { controller: "search", turbo_frame: "search_results" } do |f| %>
-          <div class="search-input-wrap">
-            <%= f.search_field :q, placeholder: "Search local library & YouTube…",
+              data: { controller: "search", turbo_frame: "search_results",
+                      turbo_action: "advance" } do |f| %>
+          <%# Only the input is permanent, and only to protect in-progress typing
+              from a broadcast morph. The scope chip and fields below must NOT be:
+              a permanent element is carried forward and never re-rendered again,
+              which left the chip stuck showing a browse you had already left. %>
+          <div class="search-input-wrap" id="search-input-wrap" data-turbo-permanent>
+            <%= f.search_field :q, placeholder: search_placeholder(scope),
                   autocomplete: "off", value: params[:q],
                   data: { search_target: "input", action: "input->search#submit input->search#toggleClear" } %>
             <button type="button" class="search-clear" data-search-target="clear"
-                    data-action="search#clearQuery" aria-label="Clear search" hidden>✕</button>
+                    data-action="search#clearQuery" aria-label="Clear search"
+                    <%= "hidden" if params[:q].blank? %>>✕</button>
           </div>
-          <%# Hidden scope fields (browse/artist/album/path) injected by the scope controller. %>
-          <div id="search-scope-fields"></div>
-          <div id="search-scope-chip" class="scope-chip" hidden>
-            <span class="scope-chip-in">In:</span>
-            <span class="scope-chip-label" data-scope-chip-label></span>
-            <button type="button" class="scope-chip-x" data-action="search#clearScope"
-                    title="Search everywhere">✕</button>
+          <%# Server-rendered from the URL, then kept in step by the scope
+              controller during frame navigation (which doesn't re-render this). %>
+          <div id="search-scope-fields">
+            <% if scope %>
+              <%= hidden_field_tag :browse, scope[:browse], id: nil %>
+              <% %i[artist album path].each do |key| %>
+                <%= hidden_field_tag key, scope[key], id: nil if scope[key].present? %>
+              <% end %>
+            <% end %>
           </div>
         <% end %>
-        <nav class="tabs">
-          <%= link_to "Library", library_path(browse: "artists"), class: "tab", data: { turbo_frame: "search_results" } %>
-          <%= link_to "History", history_path, class: "tab", data: { turbo_frame: "search_results" } %>
-        </nav>
       </div>
-      <turbo-frame id="search_results" data-turbo-permanent>
-        <%= render "shared/scope", scope: nil %>
-        <%= render "search/results", sections: [], query: params[:q], scope: nil %>
+      <%# turbo-action=advance: browsing writes itself into the URL, so back/forward
+          work and a link can be shared. NOT data-turbo-permanent — that would pin
+          the frame's content across history navigation. It no longer needs to be:
+          a morph refresh re-fetches the current URL, which now carries the browse
+          state and so re-renders this same listing. %>
+      <turbo-frame id="search_results" data-turbo-action="advance">
+        <%= render "shared/frame_content" %>
       </turbo-frame>
     </section>
 

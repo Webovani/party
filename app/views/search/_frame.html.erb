@@ -1,0 +1,5 @@
+<%# Frame contents for a search. Rendered both into the turbo-frame (typing) and
+    inline in the app shell (deep link, reload, history restore, morph refresh). %>
+<%= render "shared/scope", scope: @scope, query: @query || params[:q] %>
+<%= render "search/results", sections: @sections || [], query: @query || params[:q],
+      scope: @scope, entries: @entries || [] %>

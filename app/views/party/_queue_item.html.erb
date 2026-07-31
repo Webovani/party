@@ -10,14 +10,32 @@
     <div class="qsub">
       <% if item.track.artist.present? %><span><%= item.track.artist %></span> · <% end %>
       <span class="by"><%= item.queued_by %></span>
-      <%= render "party/cache_badge", track: item.track %>
+      <% if item.filler? %>
+        <span class="badge filler"
+              title="Long track — plays only when nothing else is queued, and steps aside as soon as someone adds a song<%=
+                     ". Resumes at #{format_ms(item.resume_position_ms)}" if item.resume_position_ms.to_i.positive? %>">
+          filler<%= " · #{format_ms(item.resume_position_ms)}" if item.resume_position_ms.to_i.positive? %>
+        </span>
+      <% end %>
+      <%= render "party/status_badge", track: item.track %>
+      <%= render "party/loudness_badge", track: item.track %>
     </div>
   </div>
 
-  <% unless first %>
+  <%# Only a track that could start right now: a promoted item goes to the head,
+      and the daemon parks on a head that is still downloading or unmeasured. %>
+  <% can_move   = !first && current_user&.can_move? && item.track.playable? %>
+  <% can_remove = item.queued_by == current_nick %>
+  <% if can_move || can_remove %>
     <div class="qactions">
-      <%= button_to "⤒", move_to_front_queue_item_path(item), class: "iconbtn",
-            form: { class: "inline", title: "Play next" } if current_user&.can_move? %>
+      <% if can_move %>
+        <%= button_to "⤒", move_to_front_queue_item_path(item), class: "iconbtn",
+              form: { class: "inline", title: "Play next" } %>
+      <% end %>
+      <% if can_remove %>
+        <%= button_to "✕", queue_item_path(item), method: :delete, class: "iconbtn",
+              form: { class: "inline", title: "Remove your song" } %>
+      <% end %>
     </div>
   <% end %>
 </li>

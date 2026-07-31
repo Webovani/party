@@ -24,6 +24,7 @@ class Enqueuer
 
     item = QueueItem.create!(track: track, queued_by: @nick)
 
+    AnalyzeLoudnessJob.perform_later(track.id) unless track.loudness_measured?
     PrecacheQueueJob.perform_later
     PlayerCommands.queue_changed
     PartyBroadcaster.refresh # update all clients even if the player is offline
@@ -49,6 +50,7 @@ class Enqueuer
           next if QueueItem.track_already_active?(track)
 
           QueueItem.create!(track: track, queued_by: @nick)
+          AnalyzeLoudnessJob.perform_later(track.id) unless track.loudness_measured?
           added += 1
         end
       end

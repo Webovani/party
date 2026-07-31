@@ -1,12 +1,20 @@
 class LibraryController < ApplicationController
   before_action :require_nick
 
-  def index
-    return redirect_to(root_path) unless turbo_frame_request?
+  MODES = %w[all artists albums folders].freeze
 
+  def index
     @library_total = Track.local.count
-    @mode = params[:browse] == "folders" ? :folders : :artists
-    @mode == :folders ? browse_folders : browse_artists
+    # "all" is the landing mode: searching is what people actually do, and the
+    # artist list is 3.5k rows they have to page through to reach anything.
+    @mode = (MODES.include?(params[:browse]) ? params[:browse] : "all").to_sym
+    # Normalise so a bare /library still resolves to a scope (and so the Library
+    # tab lights up) rather than reading as "no scope".
+    params[:browse] = @mode.to_s
+    send(:"browse_#{@mode}")
+    @scope = current_browse_scope
+    @frame_partial = "library/listing"
+    render_frame_or_page
   end
 
   def rescan
@@ -15,6 +23,26 @@ class LibraryController < ApplicationController
   end
 
   private
+
+  # No listing of its own — 22k rows is not a browse. It exists so a search can be
+  # aimed at every song at once, which is what the other modes deliberately are not.
+  def browse_all
+    @entries = []
+    @breadcrumb = [crumb("All songs", nil)]
+  end
+
+  def browse_albums
+    lib = LocalLibrary.new
+    if params.key?(:album)
+      @tracks = lib.album_tracks(params[:artist], params[:album])
+      @add = { url: add_album_queue_items_path, params: { artist: params[:artist], album: params[:album] } }
+      @breadcrumb = [crumb("Albums", browse: "albums"),
+                     crumb(params[:album].presence || "Unknown album", nil)]
+    else
+      @entries = paginate(lib.all_albums)
+      @breadcrumb = [crumb("Albums", nil)]
+    end
+  end
 
   def browse_artists
     lib = LocalLibrary.new
@@ -28,7 +56,7 @@ class LibraryController < ApplicationController
       @entries = lib.albums(params[:artist])
       @breadcrumb = [crumb("Artists", browse: "artists"), crumb(params[:artist], nil)]
     else
-      @entries = lib.artists
+      @entries = paginate(lib.artists)
       @breadcrumb = [crumb("Artists", nil)]
     end
   end
@@ -39,6 +67,15 @@ class LibraryController < ApplicationController
     @entries, @tracks = lib.folder(rel)
     @add = { url: add_folder_queue_items_path, params: { path: rel } } if rel.present?
     @breadcrumb = folder_breadcrumb(rel)
+  end
+
+  # Only the flat top-level listings (every artist, every album) get paged;
+  # drilled-in views are small by construction.
+  def paginate(entries)
+    pager = AlphaPager.new(entries)
+    @pages = pager.pages
+    @current_page = pager.page_for(params[:page])
+    @current_page ? @current_page.entries : entries
   end
 
   def crumb(label, params) = { label: label, params: params }

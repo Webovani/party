@@ -1,0 +1,22 @@
+<%# Debug badge: measured integrated loudness (EBU R128), the share of it sitting
+    below the analyzer's highpass, and the gain actually applied. Off by default —
+    it existed to judge the levelling by ear. Flip show_loudness_debug (and restart
+    web) when retuning loudness_bass_correction, so the numbers come back. %>
+<% if PartyConfig.fetch(:show_loudness_debug, false) %>
+  <% if track.loudness_lufs.present? %>
+    <% lufs = track.loudness_lufs.round(1) %>
+    <% gain = track.loudness_gain_db.round(1) %>
+    <% bass = track.bass_share_db.round(1) %>
+    <% level = if lufs > -11 then "hot" elsif lufs < -17 then "quiet" else "ok" end %>
+    <span class="badge lufs <%= level %>"
+          title="<%= lufs %> LUFS integrated (EBU R128, whole track)<%=
+                   ", #{bass} dB of it below #{PartyConfig.fetch(:loudness_highpass_hz, LoudnessAnalyzer::HIGHPASS_HZ)} Hz → corrected to #{track.effective_loudness_lufs.round(1)} LUFS" if track.loudness_measured?
+                 %> → playing at <%= gain %> dB">
+      <%= lufs %>
+      <% if track.loudness_measured? %><span class="bass">♭<%= bass %></span><% end %>
+      <span class="gain"><%= gain.positive? ? "+#{gain}" : gain %></span>
+    </span>
+  <% elsif track.ready_to_play? %>
+    <span class="badge wait">measuring…</span>
+  <% end %>
+<% end %>

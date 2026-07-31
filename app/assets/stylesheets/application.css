@@ -155,38 +155,6 @@ h1, h2, h3 { margin: 0; }
 }
 .search-clear:hover { background: var(--accent); color: #fff; }
 .search-hint { padding: 8px 2px; }
-.scope-chip[hidden] { display: none; }
-.scope-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  padding: 4px 6px 4px 12px;
-  border-radius: 999px;
-  background: rgba(124, 92, 255, 0.15);
-  border: 1px solid var(--accent);
-  font-size: 13px;
-  max-width: 100%;
-}
-.scope-chip-in { color: var(--muted); }
-.scope-chip-label {
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.scope-chip-x {
-  flex: none;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text);
-  font-size: 12px;
-  line-height: 1;
-}
-.scope-chip-x:hover { background: var(--accent); color: #fff; }
 .tabs { display: flex; gap: 8px; margin-top: 10px; }
 .tab {
   font-size: 13px;
@@ -198,7 +166,45 @@ h1, h2, h3 { margin: 0; }
   background: var(--bg-elev);
 }
 .tab:hover { color: var(--text); background: var(--bg-elev2); }
+.tab.active {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+/* Home escapes any browse scope; square it up so it reads as an icon. */
+.tab-home { padding: 6px 12px; font-size: 15px; line-height: 1; }
 .browse-note { padding: 12px 2px; font-size: 13px; }
+
+/* Search progress. Turbo puts [busy] + aria-busy on a frame while it is fetching,
+   so this is CSS-only — no JS, no server round trip to know about.
+
+   Deliberately delayed 0.4s: local search answers in ~100ms and search-as-you-type
+   re-fetches on every keystroke, so an instant spinner would strobe. Only the slow
+   case (YouTube) outlives the delay and actually shows it. */
+turbo-frame#search_results {
+  display: block;
+  position: relative;
+  transition: opacity 0.1s linear;
+}
+turbo-frame#search_results[busy] {
+  opacity: 0.55;
+  transition: opacity 0.15s linear 0.4s;
+}
+turbo-frame#search_results[busy]::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  /* margin, not translate, so centring cannot fight the rotation */
+  animation: spin 0.7s linear infinite, spinner-in 0.15s linear 0.4s both;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spinner-in { from { opacity: 0; } to { opacity: 1; } }
 
 /* ---------- Library browsing ---------- */
 .browse-head {
@@ -222,6 +228,29 @@ h1, h2, h3 { margin: 0; }
   background: var(--accent);
   border-color: var(--accent);
 }
+/* Alphabetical pager for the big flat listings. */
+.alpha-pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.alpha {
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+}
+.alpha:hover { color: var(--text); background: var(--bg-elev2); }
+.alpha.active {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 .breadcrumb {
   display: flex;
   flex-wrap: wrap;
@@ -257,7 +286,7 @@ h1, h2, h3 { margin: 0; }
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 6px;
+  padding: 12px 0;
   color: var(--text);
   text-decoration: none;
 }
@@ -270,6 +299,7 @@ h1, h2, h3 { margin: 0; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.browse-sub { color: var(--muted); font-size: 12px; margin-left: 6px; }
 .browse-row .count {
   font-size: 12px;
   color: var(--muted);
@@ -288,7 +318,7 @@ h1, h2, h3 { margin: 0; }
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px;
+  padding: 8px 0;
   border-radius: 12px;
 }
 .result:hover { background: var(--bg-elev); }
@@ -306,6 +336,11 @@ h1, h2, h3 { margin: 0; }
   color: var(--muted);
   font-size: 20px;
 }
+/* Queue rows are the tightest layout in the app, so the art is smaller there
+   than in search results / the now-playing bar. */
+.qart { width: 34px; height: 34px; }
+.qart-placeholder { font-size: 15px; }
+
 .result-meta, .qmeta { min-width: 0; flex: 1; }
 .result-title, .qtitle {
   font-size: 15px;
@@ -370,8 +405,10 @@ h1, h2, h3 { margin: 0; }
 .qitem {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px;
+  gap: 8px;
+  /* No horizontal padding: .scroll already insets the list, and doubling it
+     pushed rows further in than the search field above them. */
+  padding: 6px 0;
   border-radius: 12px;
   border-bottom: 1px solid var(--line);
 }
@@ -381,15 +418,21 @@ h1, h2, h3 { margin: 0; }
   padding: 1px 7px;
   border-radius: 999px;
 }
-.qactions { display: flex; gap: 4px; flex: none; }
+.qactions { display: flex; gap: 3px; flex: none; }
+/* Compact: a queue row has to fit art, title, artist, nick, two badges and now
+   up to two buttons — still a comfortable touch target at 28px. */
 .iconbtn {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
   border: 1px solid var(--line);
   background: var(--bg-elev);
   color: var(--text);
-  font-size: 15px;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+  display: grid;
+  place-items: center;
 }
 .iconbtn:hover { background: var(--bg-elev2); }
 
@@ -407,6 +450,22 @@ h1, h2, h3 { margin: 0; }
 .badge.ok { color: var(--ok); }
 .badge.wait { color: var(--warn); }
 .badge.err { color: var(--err); }
+
+/* Loudness debug badge — numeric, so keep the digits legible (no uppercasing). */
+.badge.lufs { text-transform: none; font-variant-numeric: tabular-nums; }
+.badge.lufs.hot { color: var(--err); }     /* louder than ~-11 LUFS */
+.badge.lufs.quiet { color: var(--warn); }  /* quieter than ~-17 LUFS */
+.badge.lufs.ok { color: var(--muted); }
+.badge.filler {
+  background: rgba(124, 92, 255, 0.16);
+  color: var(--accent);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.badge.lufs .gain { opacity: 0.65; margin-left: 3px; }
+/* Sub-bass share — how much of the LUFS reading sits below the analyzer's
+   highpass, i.e. how much of it the ear discounts. */
+.badge.lufs .bass { opacity: 0.8; margin-left: 3px; }
 
 /* ---------- Now-playing bar ---------- */
 .player-bar {
@@ -543,6 +602,11 @@ h1, h2, h3 { margin: 0; }
   border: 1px solid var(--line);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   animation: toast-in 0.2s ease;
+}
+/* Re-inserted by a morph relocating the permanent #toasts container: it is the
+   same toast, so it must not slide in a second time. */
+.toast.toast-settled {
+  animation: none;
 }
 .toast-alert { background: #3a1f24; border-color: var(--err); }
 .toast-notice { background: #1f2a24; border-color: var(--ok); }

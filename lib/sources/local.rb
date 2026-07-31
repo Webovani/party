@@ -5,7 +5,7 @@ module Sources
     # `scope` optionally narrows the search to a subset of the local library
     # (an artist/album/folder relation); defaults to the whole library.
     def search(query, limit: 25, scope: nil)
-      (scope || Track.local).search(query).limit(limit).map(&:to_search_result)
+      (scope || Track.local).matching(query).limit(limit).map(&:to_search_result)
     end
   end
 end

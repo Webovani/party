@@ -8,6 +8,82 @@ module ApplicationHelper
     volume: '<path d="M4 9v6h3.5L12 19V5L7.5 9H4z"/><path d="M15.5 8.5a4 4 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
   }.freeze
 
+  # Which of the three top-level tabs the current scope belongs to.
+  def active_browse_tab(scope)
+    return :home if scope.nil?
+
+    scope[:browse] == "history" ? :history : :library
+  end
+
+  # What a search from here would actually cover. Sole source of the input's
+  # placeholder — the old "Type to search…" hint said the same thing a second time
+  # and was removed, so the library count it carried lives here now.
+  def scope_search_target(scope)
+    return "your local library and YouTube" if scope.nil?
+
+    case scope[:browse]
+    when "history" then "played history"
+    when "all"     then "all #{number_with_delimiter(library_track_count)} songs in library"
+    when "albums"  then scope[:album].present?      ? "in #{scope[:label]}" : "albums and their songs"
+    when "artists" then scope[:artist].present?     ? "in #{scope[:label]}" : "artists and their songs"
+    when "folders" then scope[:path].to_s.present?  ? "in #{scope[:label]}" : "folders and their songs"
+    else "in #{scope[:label]}"
+    end
+  end
+
+  # LibraryController already has it on a browse render; a search in All mode does
+  # not, so fall back to counting rather than letting the placeholder change
+  # wording depending on how you arrived.
+  def library_track_count = @library_total ||= Track.local.count
+
+  # Rendered server-side AND re-applied by the scope controller: frame navigation
+  # doesn't re-render the controls, and the input is permanent, so the server's
+  # version only lands on a full page load.
+  def search_placeholder(scope) = "Search #{scope_search_target(scope)}…"
+
+  # Browser tab title. Song first: a tab strip truncates the end, and the song is
+  # the part worth reading at a glance. Updates on its own because a track change
+  # broadcasts a page refresh, which re-renders the whole document.
+  #
+  # Only set from a full page render — a turbo-frame response's <head> is discarded
+  # by Turbo, so the ivars being nil there costs nothing.
+  def document_title(player, item)
+    track = item&.track
+    return "Party" if track.nil? || player.nil? || player.stopped?
+
+    name = track_label(track)
+    "#{player.paused? ? "⏸" : "▶"} #{name} · Party"
+  end
+
+  # Tab-title label only — nothing else renders through this.
+  #
+  # YouTube's "artist" is the uploading channel, which is either repeated in the
+  # video title ("Knife Party" + "Knife Party - 'Internet Friends'") or is not the
+  # artist at all ("AFM Records" for a DYNAZTY track). The video title is the one
+  # dependable field, so that is all the title uses. Local tags are trustworthy.
+  def track_label(track)
+    title = track.title.to_s.strip
+    return title if track.youtube?
+
+    artist = track.artist.to_s.strip
+    artist.blank? ? title : "#{artist} – #{title}"
+  end
+
+  LIBRARY_MODES = %w[all artists albums folders].freeze
+
+  # The library sub-mode a scope belongs to, or nil outside the library.
+  def library_mode(scope)
+    return nil unless scope && LIBRARY_MODES.include?(scope[:browse])
+
+    scope[:browse].to_sym
+  end
+
+  # Heading above the collection rows in a scoped search result.
+  def entry_group_label(scope)
+    { "artists" => "Artists", "albums" => "Albums", "folders" => "Folders" }
+      .fetch(scope&.dig(:browse), "Collections")
+  end
+
   def player_icon(name)
     raw(%(<svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">#{PLAYER_ICONS.fetch(name.to_sym)}</svg>))
   end

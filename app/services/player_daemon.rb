@@ -47,6 +47,13 @@ class PlayerDaemon
     if (device = PartyConfig.audio_device)
       args << "--audio-device=#{device}"
     end
+    # Loudness levelling. Deliberately measured live rather than read from tags:
+    # the library's ReplayGain tags disagree with reality, and YouTube downloads
+    # have none at all. Sources here span ~8 dB (-8.9..-17.2 LUFS), which is very
+    # audible between tracks.
+    if (filter = PartyConfig[:audio_filter]).present?
+      args << "--af=#{filter}"
+    end
 
     @mpv_pid = Process.spawn(*args)
     Process.detach(@mpv_pid) # auto-reap; we check liveness with kill(0)
@@ -68,8 +75,9 @@ class PlayerDaemon
     item = state.current_queue_item
     return if item.nil? || item.state != "playing"
 
-    if (state.playing? || state.paused?) && item.track.ready_to_play?
+    if (state.playing? || state.paused?) && item.track.playable?
       @loaded_item_id = item.id
+      apply_track_gain(item.track)
       @mpv.loadfile(item.track.playable_path)
       @mpv.set_property("pause", !state.playing?)
       state.update!(position_ms: 0)
@@ -169,9 +177,30 @@ class PlayerDaemon
 
   def do_set_volume(value)
     volume = value.to_i.clamp(0, 100)
-    @mpv.set_property("volume", volume)
     PlayerState.instance.update!(volume: volume)
+    apply_volume
     PartyBroadcaster.refresh
+  end
+
+  # mpv's "volume" is the user's fader and nothing else.
+  #
+  # It must NOT carry the loudness gain: mpv's volume scale is cubic
+  # (gain_dB = 3 * 20*log10(vol/100), measured on 0.34.1), so folding a linear
+  # amplitude factor into it applied every correction three times over in dB and
+  # made quiet tracks wildly quiet. The track gain goes through an audio filter
+  # instead, which takes exact dB — verified against decoded output, not just
+  # against the value we set.
+  def apply_volume
+    safe_mpv { @mpv.set_property("volume", PlayerState.instance.volume.to_i.clamp(0, 100)) }
+  end
+
+  # Per-track loudness gain, as an exact-dB filter node. Set this BEFORE loadfile:
+  # mpv is not paused during continuous playback, so a file loaded first starts
+  # audible at the previous track's gain.
+  def apply_track_gain(track)
+    gain = track&.loudness_gain_db.to_f
+    chain = [PartyConfig[:audio_filter].presence, ("volume=#{gain.round(2)}dB" unless gain.zero?)].compact
+    safe_mpv { @mpv.command("af", "set", chain.join(",")) }
   end
 
   def do_seek(seconds)
@@ -181,6 +210,8 @@ class PlayerDaemon
   end
 
   def do_queue_changed
+    return if interrupt_filler
+
     state = PlayerState.instance
     cued = @loaded_item_id && state.current_queue_item
     # Adding a track should get music going, unless the user explicitly paused.
@@ -218,7 +249,7 @@ class PlayerDaemon
     return stop_playback(state) if nxt.nil?
 
     track = nxt.track
-    return wait_for_cache(state, track) unless track.ready_to_play?
+    return wait_for_track(state, track) unless track.playable?
 
     play_item(state, nxt, track)
   end
@@ -237,11 +268,37 @@ class PlayerDaemon
     PartyBroadcaster.refresh
   end
 
-  def wait_for_cache(state, track)
+  # Park on a head that isn't ready to start — still downloading, or not yet
+  # measured. Never fall through to playing it: an unmeasured track gets gain 0
+  # and would blast at full volume.
+  def wait_for_track(state, track)
     ensure_caching(track)
+    ensure_measured(track)
     @loaded_item_id = nil
     state.update!(status: "playing", current_queue_item_id: nil, position_ms: 0, duration_ms: 0)
     PartyBroadcaster.refresh
+  end
+
+  # Filler yields the moment anyone queues a real song. Its position is saved so
+  # it picks up where it stopped when the queue empties again — it goes back as
+  # "queued", not "played", and sorts behind everything as filler always does.
+  def interrupt_filler
+    state = PlayerState.instance
+    item = state.current_queue_item
+    return false unless item&.filler? && item.state == "playing"
+    # Only step aside for something that can actually start NOW. A track that is
+    # still downloading or unmeasured would park the head, turning a playing mix
+    # into silence — worse than letting the filler run on.
+    return false unless QueueItem.waiting.where(filler: false).includes(:track).any? { |i| i.track.playable? }
+
+    position = safe_mpv { @mpv.get_property("time-pos") }
+    item.update!(state: "queued", resume_position_ms: ((position || 0) * 1000).to_i)
+    state.update!(current_queue_item_id: nil, position_ms: 0, duration_ms: 0)
+    @loaded_item_id = nil
+    Rails.logger.info("[player] filler '#{item.track.title}' interrupted at #{position.to_i}s")
+
+    advance
+    true
   end
 
   def play_item(state, item, track)
@@ -249,8 +306,11 @@ class PlayerDaemon
     @loaded_item_id = item.id
     state.update!(status: "playing", current_queue_item_id: item.id,
                   position_ms: 0, duration_ms: track.duration_ms.to_i)
-    @mpv.loadfile(track.playable_path)
+    apply_track_gain(track)
+    resume_at = item.resume_position_ms.to_i
+    @mpv.loadfile(track.playable_path, start_seconds: resume_at / 1000.0)
     @mpv.set_property("pause", false)
+    state.update!(position_ms: resume_at)
     PrecacheQueueJob.perform_later
     PartyBroadcaster.refresh
   end
@@ -260,6 +320,14 @@ class PlayerDaemon
     return if track.cache_status == "pending"
 
     CacheYoutubeTrackJob.perform_later(track.id)
+  end
+
+  # The file has to exist before ffmpeg can read it, so this only fires once the
+  # download (if any) has landed.
+  def ensure_measured(track)
+    return if track.loudness_measured? || !track.ready_to_play?
+
+    AnalyzeLoudnessJob.perform_later(track.id)
   end
 
   # ---- threads / loops ----

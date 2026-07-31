@@ -21,7 +21,7 @@ RSpec.describe "Library browsing", type: :request do
 
   describe "artist / album browsing" do
     it "lists artists" do
-      get library_path, headers: { "Turbo-Frame" => "search_results" }
+      get library_path(browse: "artists"), headers: { "Turbo-Frame" => "search_results" }
       expect(response.body).to include("ABBA", "Queen")
     end
 

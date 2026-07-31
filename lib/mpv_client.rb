@@ -63,7 +63,13 @@ class MpvClient
   def set_property(name, value) = command("set_property", name, value)
   def get_property(name)        = command("get_property", name)
   def observe_property(id, name) = command("observe_property", id, name)
-  def loadfile(path)            = command("loadfile", path, "replace")
+  # `start=` rather than a seek after loading: loading first would play a moment
+  # of audio from 0:00 before the seek lands.
+  def loadfile(path, start_seconds: 0)
+    return command("loadfile", path, "replace") if start_seconds.to_f <= 0
+
+    command("loadfile", path, "replace", "start=#{start_seconds.to_f.round(3)}")
+  end
   def stop                      = command("stop")
 
   private

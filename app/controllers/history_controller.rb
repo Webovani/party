@@ -5,8 +5,6 @@ class HistoryController < ApplicationController
 
   # Distinct tracks that have been played or skipped, most-recently-played first.
   def index
-    return redirect_to(root_path) unless turbo_frame_request?
-
     @tracks = Track
               .joins(:queue_items)
               .where(queue_items: { state: %w[played skipped] })
@@ -14,5 +12,8 @@ class HistoryController < ApplicationController
               .group("tracks.id")
               .order("last_played DESC")
               .limit(LIMIT)
+    @scope = { browse: "history", label: "History" }
+    @frame_partial = "history/listing"
+    render_frame_or_page
   end
 end

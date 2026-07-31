@@ -1,0 +1,48 @@
+<%= render "shared/scope", scope: @scope, listing: true %>
+
+<% if @library_total.zero? %>
+  <p class="muted">No local tracks indexed yet.</p>
+<% else %>
+  <nav class="breadcrumb">
+    <% @breadcrumb.each_with_index do |c, i| %>
+      <% if i.positive? %><span class="sep">›</span><% end %>
+      <% if c[:params] %>
+        <%= link_to c[:label], library_path(c[:params]), data: { turbo_frame: "search_results" } %>
+      <% else %>
+        <span class="here"><%= c[:label] %></span>
+      <% end %>
+    <% end %>
+  </nav>
+
+  <% if @add %>
+    <%= button_to "＋ Add all these to the queue", @add[:url], params: @add[:params],
+          class: "add-all", form: { class: "inline" } %>
+  <% end %>
+
+  <% if @pages&.any? %>
+    <nav class="alpha-pages">
+      <% @pages.each do |page| %>
+        <%= link_to page.label, library_path(browse: @mode, page: page.key),
+              class: class_names("alpha", active: page.key == @current_page&.key),
+              title: "#{page.count} items", data: { turbo_frame: "search_results" } %>
+      <% end %>
+    </nav>
+  <% end %>
+
+  <% if @entries&.any? %>
+    <ul class="browse-list">
+      <%= render partial: "shared/browse_row", collection: @entries, as: :entry %>
+    </ul>
+  <% end %>
+
+  <% if @tracks&.any? %>
+    <ul class="results">
+      <%= render partial: "shared/result_card",
+                 collection: @tracks.map { |t| track_to_result(t) }, as: :result %>
+    </ul>
+  <% end %>
+
+  <% if @entries&.empty? && @tracks&.empty? %>
+    <p class="muted">Nothing here.</p>
+  <% end %>
+<% end %>

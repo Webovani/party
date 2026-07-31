@@ -10,9 +10,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_21_105232) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_22_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+  enable_extension "pg_trgm"
 
   create_table "player_states", force: :cascade do |t|
     t.datetime "created_at", null: false
@@ -26,11 +27,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_21_105232) do
 
   create_table "queue_items", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.boolean "filler", default: false, null: false
     t.bigint "position", null: false
     t.string "queued_by", null: false
+    t.integer "resume_position_ms", default: 0, null: false
     t.string "state", default: "queued", null: false
     t.bigint "track_id", null: false
     t.datetime "updated_at", null: false
+    t.index ["filler", "position"], name: "index_queue_items_on_filler_and_position"
     t.index ["position"], name: "index_queue_items_on_position"
     t.index ["state"], name: "index_queue_items_on_state"
     t.index ["track_id"], name: "index_queue_items_on_track_id"
@@ -56,13 +60,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_21_105232) do
     t.datetime "file_mtime"
     t.text "last_error"
     t.string "local_path"
-    t.virtual "search_vector", type: :tsvector, as: "to_tsvector('simple'::regconfig, (((((COALESCE(title, ''::character varying))::text || ' '::text) || (COALESCE(artist, ''::character varying))::text) || ' '::text) || (COALESCE(album, ''::character varying))::text))", stored: true
+    t.integer "loudness_attempts", default: 0, null: false
+    t.float "loudness_lufs"
+    t.float "loudness_lufs_hp"
+    t.virtual "search_text", type: :text, as: "translate((((((COALESCE(title, ''::character varying))::text || ' '::text) || (COALESCE(artist, ''::character varying))::text) || ' '::text) || (COALESCE(album, ''::character varying))::text), 'ÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝàáâãäåçèéêëìíîïðñòóôõöøùúûüýÿĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚěĜĝĞğĠġĢģĤĥĦħĨĩĪīĬĭĮįİıĴĵĶķĸĹĺĻļĽľĿŀŁłŃńŅņŇňŌōŎŏŐőŔŕŖŗŘřŚśŜŝŞşŠšŢţŤťŦŧŨũŪūŬŭŮůŰűŲųŴŵŶŷŸŹźŻżŽž'::text, 'AAAAAACEEEEIIIIDNOOOOOOUUUUYaaaaaaceeeeiiiidnoooooouuuuyyAaAaAaCcCcCcCcDdDdEeEeEeEeEeGgGgGgGgHhHhIiIiIiIiIiJjKkkLlLlLlLlLlNnNnNnOoOoOoRrRrRrSsSsSsSsTtTtTtUuUuUuUuUuUuWwYyYZzZzZz'::text)", stored: true
+    t.virtual "search_vector", type: :tsvector, as: "to_tsvector('simple'::regconfig, translate((((((COALESCE(title, ''::character varying))::text || ' '::text) || (COALESCE(artist, ''::character varying))::text) || ' '::text) || (COALESCE(album, ''::character varying))::text), 'ÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝàáâãäåçèéêëìíîïðñòóôõöøùúûüýÿĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚěĜĝĞğĠġĢģĤĥĦħĨĩĪīĬĭĮįİıĴĵĶķĸĹĺĻļĽľĿŀŁłŃńŅņŇňŌōŎŏŐőŔŕŖŗŘřŚśŜŝŞşŠšŢţŤťŦŧŨũŪūŬŭŮůŰűŲųŴŵŶŷŸŹźŻżŽž'::text, 'AAAAAACEEEEIIIIDNOOOOOOUUUUYaaaaaaceeeeiiiidnoooooouuuuyyAaAaAaCcCcCcCcDdDdEeEeEeEeEeGgGgGgGgHhHhIiIiIiIiIiJjKkkLlLlLlLlLlNnNnNnOoOoOoRrRrRrSsSsSsSsTtTtTtUuUuUuUuUuUuWwYyYZzZzZz'::text))", stored: true
     t.string "source", null: false
     t.string "source_uid", null: false
     t.string "thumbnail_url"
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.index ["cache_status"], name: "index_tracks_on_cache_status"
+    t.index ["search_text"], name: "index_tracks_on_search_text_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["search_vector"], name: "index_tracks_on_search_vector", using: :gin
     t.index ["source", "source_uid"], name: "index_tracks_on_source_and_source_uid", unique: true
   end

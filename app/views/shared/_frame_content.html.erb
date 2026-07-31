@@ -1,0 +1,5 @@
+<%# Everything inside the search_results frame. Rendered by the frame responses
+    AND inline by the app shell, so both paths produce identical markup. %>
+<%= render "shared/tabs" %>
+<%= render "shared/modes" %>
+<%= render(@frame_partial || "search/frame") %>

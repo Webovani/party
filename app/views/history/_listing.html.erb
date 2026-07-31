@@ -1,0 +1,10 @@
+<%= render "shared/scope", scope: @scope, listing: true %>
+<h3 class="source-head">Recently played</h3>
+<% if @tracks.empty? %>
+  <p class="muted">Nothing has played yet.</p>
+<% else %>
+  <ul class="results">
+    <%= render partial: "shared/result_card",
+               collection: @tracks.map { |t| track_to_result(t) }, as: :result %>
+  </ul>
+<% end %>

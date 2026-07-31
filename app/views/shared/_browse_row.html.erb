@@ -1,7 +1,10 @@
 <li class="browse-row">
   <%= link_to library_path(entry.nav), class: "browse-link", data: { turbo_frame: "search_results" } do %>
     <span class="browse-icon"><%= { folder: "📁", album: "💿", artist: "🎤" }[entry.kind] %></span>
-    <span class="browse-label"><%= entry.label %></span>
+    <span class="browse-label">
+      <%= entry.label %>
+      <% if entry.sub.present? %><span class="browse-sub"><%= entry.sub %></span><% end %>
+    </span>
     <span class="count"><%= entry.count %></span>
   <% end %>
   <% if entry.add %>
