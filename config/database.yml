@@ -1,0 +1,116 @@
+# PostgreSQL. Versions 9.5 and up are supported.
+#
+# Install the pg driver:
+#   gem install pg
+# On macOS with Homebrew:
+#   gem install pg -- --with-pg-config=/opt/homebrew/bin/pg_config
+# On Windows:
+#   gem install pg
+#       Choose the win32 build.
+#       Install PostgreSQL and put its /bin directory on your path.
+#
+# Configure Using Gemfile
+# gem "pg"
+#
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  # For details on connection pooling, see Rails configuration guide
+  # https://guides.rubyonrails.org/configuring.html#database-pooling
+  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  # All four are blank by default, which means "the local PostgreSQL, over its
+  # unix socket, as the current OS user" — what a stock install of Postgres on
+  # Linux or Homebrew gives you, and the only setup that needs no configuration
+  # at all. Set PARTY_DB_* (in .env, which is read in development and test) for
+  # anything else: a non-default port, a TCP host, a password.
+  host: <%= ENV["PARTY_DB_HOST"] %>
+  port: <%= ENV["PARTY_DB_PORT"] %>
+  username: <%= ENV["PARTY_DB_USER"] %>
+  password: <%= ENV["PARTY_DB_PASSWORD"] %>
+
+
+development:
+  primary:
+    <<: *default
+    database: party_development
+  cache:
+    <<: *default
+    database: party_development_cache
+    migrations_paths: db/cache_migrate
+  queue:
+    <<: *default
+    database: party_development_queue
+    migrations_paths: db/queue_migrate
+  cable:
+    <<: *default
+    database: party_development_cable
+    migrations_paths: db/cable_migrate
+
+# Warning: The database defined as "test" will be erased and
+# re-generated from your development database when you run "rake".
+# Do not set this db to the same as development or production.
+test:
+  primary:
+    <<: *default
+    database: party_test
+  cache:
+    <<: *default
+    database: party_test_cache
+    migrations_paths: db/cache_migrate
+  queue:
+    <<: *default
+    database: party_test_queue
+    migrations_paths: db/queue_migrate
+  cable:
+    <<: *default
+    database: party_test_cable
+    migrations_paths: db/cable_migrate
+
+# As with config/credentials.yml, you never want to store sensitive information,
+# like your database password, in your source code. If your source code is
+# ever seen by anyone, they now have access to your database.
+#
+# Instead, provide the password or a full connection URL as an environment
+# variable when you boot the app. For example:
+#
+#   DATABASE_URL="postgres://myuser:mypass@localhost/somedatabase"
+#
+# If the connection URL is provided in the special DATABASE_URL environment
+# variable, Rails will automatically merge its configuration values on top of
+# the values provided in this file. Alternatively, you can specify a connection
+# URL environment variable explicitly:
+#
+#   production:
+#     url: <%= ENV["MY_APP_DATABASE_URL"] %>
+#
+# Connection URLs for non-primary databases can also be configured using
+# environment variables. The variable name is formed by concatenating the
+# connection name with `_DATABASE_URL`. For example:
+#
+#   CACHE_DATABASE_URL="postgres://cacheuser:cachepass@localhost/cachedatabase"
+#
+# Read https://guides.rubyonrails.org/configuring.html#configuring-a-database
+# for a full overview on how database connection configuration can be specified.
+#
+# Production reads the same PARTY_DB_* variables as everything else (see
+# .env.example) so a container deployment only has to set those four; compose
+# pins them to its own `db` service. PARTY_DATABASE_PASSWORD is kept as a
+# fallback for the name Rails' own generated config used.
+production:
+  primary: &primary_production
+    <<: *default
+    database: <%= ENV.fetch("PARTY_DB_NAME", "party_production") %>
+    username: <%= ENV.fetch("PARTY_DB_USER") { ENV.fetch("PARTY_DB_USERNAME", "party") } %>
+    password: <%= ENV.fetch("PARTY_DB_PASSWORD") { ENV["PARTY_DATABASE_PASSWORD"] } %>
+  cache:
+    <<: *primary_production
+    database: <%= ENV.fetch("PARTY_DB_NAME", "party_production") %>_cache
+    migrations_paths: db/cache_migrate
+  queue:
+    <<: *primary_production
+    database: <%= ENV.fetch("PARTY_DB_NAME", "party_production") %>_queue
+    migrations_paths: db/queue_migrate
+  cable:
+    <<: *primary_production
+    database: <%= ENV.fetch("PARTY_DB_NAME", "party_production") %>_cable
+    migrations_paths: db/cable_migrate

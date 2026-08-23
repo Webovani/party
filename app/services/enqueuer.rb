@@ -13,7 +13,16 @@ class Enqueuer
   def enqueue(result)
     raise Rejected, "Pick a nickname first." if @nick.blank?
 
-    track = Track.upsert_from_result(result.to_h.symbolize_keys)
+    result = result.to_h.symbolize_keys
+    # The single choke point for "no local library here". Worth refusing rather
+    # than letting it through: a local track whose file is missing parks the
+    # player on it forever — unlike a dead YouTube link, nothing counts attempts
+    # and drops it (see CacheYoutubeTrackJob).
+    if result[:source].to_s == "local" && !PartyConfig.local_library?
+      raise Rejected, "No local library on this box — YouTube only."
+    end
+
+    track = Track.upsert_from_result(result)
     enforce_fair_use!(track)
 
     # Re-adding a track that previously failed to cache gets a fresh download

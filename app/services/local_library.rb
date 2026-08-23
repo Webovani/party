@@ -8,8 +8,16 @@ class LocalLibrary
   # `sub` is a secondary line (an album's artist, a matched folder's parent).
   Entry = Struct.new(:kind, :label, :sub, :count, :nav, :add, keyword_init: true)
 
+  # Raised rather than returning something usable: with a blank music_dir,
+  # File.expand_path("") is the working directory, which would quietly make the
+  # whole app root "the library". Every caller is behind PartyConfig.local_library?
+  # already, so this only fires on a path that forgot to check.
+  class Disabled < StandardError; end
+
   def music_dir
-    @music_dir ||= File.expand_path(PartyConfig[:music_dir].to_s)
+    @music_dir ||= File.expand_path(
+      PartyConfig.music_dir || raise(Disabled, "No local library configured (music_dir is blank)")
+    )
   end
 
   # ---- Artist / Album ----

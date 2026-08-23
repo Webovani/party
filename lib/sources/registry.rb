@@ -3,8 +3,11 @@ module Sources
   module Registry
     module_function
 
+    # Local drops out entirely when no music_dir is configured, so an unscoped
+    # search simply never asks it — no empty "Local library" section, no results
+    # pointing at files this deployment cannot browse.
     def all
-      @all ||= [Sources::Local.new, Sources::Youtube.new]
+      @all ||= [(Sources::Local.new if PartyConfig.local_library?), Sources::Youtube.new].compact
     end
 
     # Reset memoized sources (used in tests).

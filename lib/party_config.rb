@@ -21,6 +21,18 @@ module PartyConfig
     value.presence
   end
 
+  # Blank music_dir means "there is no local library" — YouTube-only mode. Note
+  # this is a *configuration* answer, not a filesystem one: a configured library
+  # on an unmounted drive is still enabled (the index stays browsable and the
+  # scanner skips), because that is a temporary state, not a decision.
+  def music_dir
+    all[:music_dir].presence
+  end
+
+  def local_library?
+    music_dir.present?
+  end
+
   def audio_extensions
     all[:audio_extensions].map { |e| e.to_s.downcase }
   end

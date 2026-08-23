@@ -42,6 +42,12 @@ gem "image_processing", "~> 1.2"
 gem "wahwah"
 
 group :development, :test do
+  # Machine-specific settings (DB address, music dir, host names) come from a
+  # gitignored .env — the same file docker compose reads, so a native run and a
+  # containerised one are configured identically. Nothing in it is required:
+  # every value has a working default.
+  gem "dotenv-rails"
+
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
 

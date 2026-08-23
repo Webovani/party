@@ -5,8 +5,12 @@
 <nav class="tabs">
   <%= link_to root_path, class: class_names("tab", "tab-home", active: active == :home),
         title: "Search everywhere", data: { turbo_frame: "search_results" } do %>⌂<% end %>
-  <%= link_to "Library", library_path(browse: "all"),
-        class: class_names("tab", active: active == :library), data: { turbo_frame: "search_results" } %>
+  <%# No music_dir configured = no library to browse; the tab goes away entirely
+      rather than leading to an empty one. %>
+  <% if local_library? %>
+    <%= link_to "Library", library_path(browse: "all"),
+          class: class_names("tab", active: active == :library), data: { turbo_frame: "search_results" } %>
+  <% end %>
   <%= link_to "History", history_path,
         class: class_names("tab", active: active == :history), data: { turbo_frame: "search_results" } %>
 </nav>

@@ -1,7 +1,16 @@
 #!/bin/bash -e
 
-# If running the rails server then create or migrate existing database
-if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
+# Prepare the database before starting the web role. The jobs and player
+# containers wait for web to be healthy (see docker-compose.yml), so exactly one
+# process ever runs db:prepare and the other two find a ready schema.
+#
+# Set PARTY_DB_PREPARE=false to skip it (e.g. pointing at a managed database),
+# or =true for a one-off container that has to create the schema itself.
+prepare_db=${PARTY_DB_PREPARE:-auto}
+
+if [ "$prepare_db" = true ] || {
+     [ "$prepare_db" = auto ] && [ "${1:-}" = "./bin/rails" ] && [ "${2:-}" = "server" ]
+   }; then
   ./bin/rails db:prepare
 fi
 

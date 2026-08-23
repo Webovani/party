@@ -5,7 +5,12 @@ class HistoryController < ApplicationController
 
   # Distinct tracks that have been played or skipped, most-recently-played first.
   def index
-    @tracks = Track
+    # Local rows are hidden when there is no library: they cannot be re-added
+    # (Enqueuer refuses them), so listing them would only offer a button that
+    # always fails. Old plays from before the library was switched off — or from
+    # a drive that used to be mounted here — are exactly that case.
+    scope = local_library? ? Track.all : Track.youtube
+    @tracks = scope
               .joins(:queue_items)
               .where(queue_items: { state: %w[played skipped] })
               .select("tracks.*, max(queue_items.updated_at) AS last_played")

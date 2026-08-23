@@ -5,9 +5,14 @@ class ApplicationController < ActionController::Base
   # Changes to the importmap will invalidate the etag for HTML responses
   stale_when_importmap_changes
 
-  helper_method :current_nick, :current_user, :signed_in?, :current_browse_scope
+  helper_method :current_nick, :current_user, :signed_in?, :current_browse_scope, :local_library?
 
   private
+
+  # Is there a local library at all? Blank music_dir = YouTube-only deployment.
+  def local_library?
+    PartyConfig.local_library?
+  end
 
   # Self-set nickname, stored in a signed cookie. No password — trusted LAN.
   def current_nick
@@ -25,6 +30,11 @@ class ApplicationController < ActionController::Base
   def current_browse_scope
     browse = params[:browse].presence
     return nil unless browse
+    # Without a library, every browse scope but history is meaningless. Dropping
+    # it here (rather than trusting the links to be gone) means a bookmarked
+    # ?browse=albums URL degrades to a plain search instead of silently scoping
+    # it to a library that isn't there.
+    return nil if browse != "history" && !local_library?
 
     if browse == "history"
       { browse: "history", label: "History" }

@@ -19,7 +19,7 @@ module ApplicationHelper
   # placeholder — the old "Type to search…" hint said the same thing a second time
   # and was removed, so the library count it carried lives here now.
   def scope_search_target(scope)
-    return "your local library and YouTube" if scope.nil?
+    return (local_library? ? "your local library and YouTube" : "YouTube") if scope.nil?
 
     case scope[:browse]
     when "history" then "played history"
@@ -114,6 +114,7 @@ module ApplicationHelper
   # Link target for jumping from a local result to its album browse view.
   # Returns { params:, label: } or nil when there's no artist to browse by.
   def local_album_nav(result)
+    return nil unless local_library?
     return nil unless result[:source] == "local" && result[:artist].present?
 
     params = { browse: "artists", artist: result[:artist] }
@@ -135,6 +136,7 @@ module ApplicationHelper
   # Folder of a local file, relative to music_dir ("" for the root); nil if the
   # result isn't a local file under music_dir.
   def local_folder_rel(result)
+    return nil unless local_library?
     return nil unless result[:source] == "local" && result[:local_path].present?
 
     music = (@party_music_dir ||= LocalLibrary.new.music_dir)

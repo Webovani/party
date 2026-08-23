@@ -1,0 +1,81 @@
+# Party app configuration. Values can be overridden via environment variables.
+default: &default
+  # Local music library root (may be an unmounted removable drive).
+  # BLANK BY DEFAULT: with no PARTY_MUSIC_DIR set the app runs YouTube-only —
+  # the Library tab and every browse view disappear, search asks YouTube alone,
+  # scanning is a no-op, and adding a local track is refused (see
+  # PartyConfig.local_library?). Point it at a directory to switch the library
+  # on, then run `bin/rails party:scan`.
+  music_dir: <%= ENV.fetch("PARTY_MUSIC_DIR", "") %>
+  # Where downloaded YouTube audio is cached.
+  cache_dir: <%= ENV.fetch("PARTY_CACHE_DIR", Rails.root.join("tmp/youtube_cache").to_s) %>
+  # mpv JSON IPC socket the player daemon creates and the app talks to.
+  mpv_ipc_socket: <%= ENV.fetch("PARTY_MPV_SOCKET", Rails.root.join("tmp/party-mpv.sock").to_s) %>
+  # mpv audio device, e.g. "alsa/hw:1,0". Blank = mpv's default device.
+  audio_device: <%= ENV.fetch("PARTY_AUDIO_DEVICE", "") %>
+  # mpv audio filter chain, applied at launch. Default levels loudness across the
+  # wildly varying sources (local rips vs YouTube) without needing ReplayGain tags
+  # or a pre-analysis pass — it measures as it plays, so a track queued seconds ago
+  # is handled too. Set blank to disable.
+  #   g = smoothing window (higher = smoother, less pumping)
+  #   m = max amplification (caps how hard quiet passages get pushed)
+  #   p = target peak
+  # Left blank now that per-track loudness gain does the levelling: dynaudnorm
+  # renormalises to a target PEAK regardless of input level, so it would simply
+  # undo the static gain below. Set it to e.g.
+  # "dynaudnorm=f=500:g=31:p=0.9:m=8:n=1" to go back to live peak levelling.
+  audio_filter: <%= ENV.fetch("PARTY_AUDIO_FILTER", "") %>
+
+  # Loudness normalisation. Each track is measured once (EBU R128 integrated,
+  # see LoudnessAnalyzer) and played at target - measured dB.
+  # Conservative on purpose: max_gain 0 means we only ever turn tracks DOWN, so
+  # there is no clipping risk and plenty of headroom — turn the amp up instead.
+  loudness_target_lufs: <%= ENV.fetch("PARTY_LOUDNESS_TARGET", -20) %>
+  loudness_max_gain_db: <%= ENV.fetch("PARTY_LOUDNESS_MAX_GAIN", 0) %>
+  loudness_min_gain_db: <%= ENV.fetch("PARTY_LOUDNESS_MIN_GAIN", -20) %>
+
+  # R128's K-weighting barely discounts sub-bass, so a bass-heavy track meters the
+  # same as a midrange-dense one but sounds several dB quieter on party speakers.
+  # Each track is also measured highpassed; this is how much of that difference to
+  # correct for. 0 = plain R128, 1 = judge loudness on the midrange alone.
+  loudness_bass_correction: <%= ENV.fetch("PARTY_LOUDNESS_BASS_CORRECTION", 0.5) %>
+  loudness_highpass_hz: <%= ENV.fetch("PARTY_LOUDNESS_HIGHPASS_HZ", 200) %>
+
+  # Per-track LUFS / bass-share / gain badge on each queue row. Off — it was for
+  # judging the levelling by ear. Turn on (and restart web) when retuning
+  # loudness_bass_correction, so the numbers are visible again.
+  show_loudness_debug: <%= ENV.fetch("PARTY_LOUDNESS_DEBUG", false) %>
+
+  # A queued track at least this long is treated as "filler": it plays only when
+  # nothing else is waiting, and is interrupted (position saved) as soon as anyone
+  # queues a real song. Meant for long mixes that would otherwise hog the queue.
+  filler_min_duration_ms: <%= ENV.fetch("PARTY_FILLER_MIN_MS", 12 * 60 * 1000) %>
+
+  # Fair-use / behavior (defaults mirror the existing mopidy [party] config).
+  votes_to_skip: <%= ENV.fetch("PARTY_VOTES_TO_SKIP", 2) %>
+  max_queue_length: <%= ENV.fetch("PARTY_MAX_QUEUE_LENGTH", 30) %>
+  max_queue_per_user: <%= ENV.fetch("PARTY_MAX_QUEUE_PER_USER", 20) %>
+  # How many upcoming YouTube tracks to keep pre-cached.
+  precache_ahead: <%= ENV.fetch("PARTY_PRECACHE_AHEAD", 3) %>
+
+  audio_extensions:
+    - mp3
+    - flac
+    - m4a
+    - ogg
+    - opus
+    - wav
+    - aac
+    - wma
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+  music_dir: <%= Rails.root.join("tmp/test_music").to_s %>
+  cache_dir: <%= Rails.root.join("tmp/test_cache").to_s %>
+  mpv_ipc_socket: <%= Rails.root.join("tmp/test-mpv.sock").to_s %>
+
+production:
+  <<: *default

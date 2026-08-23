@@ -22,6 +22,13 @@ bin/party restart jobs          # bounce the worker without touching playback
 bin/party logs player           # journalctl -f
 ```
 
+There is also a **container** deployment (`docker-compose.yml`, guide in `docs/DOCKER.md`):
+same three roles from one image, its own PostgreSQL, port 3008, `RAILS_ENV=production` (so no
+code reloading — rebuild). It is an alternative to the systemd stack, not a replacement: both
+would drive the same speakers, so stop one before starting the other. Audio reaches the player
+container through the host's PulseAudio socket, which only works if the image was built with
+`PUID` = the socket owner's uid.
+
 `bin/party` sets `XDG_RUNTIME_DIR` itself, so it works from any shell (ssh included).
 Units live in `deploy/systemd/`; installed copies are in `~/.config/systemd/user/`. After
 editing a unit: copy it there + `systemctl --user daemon-reload`.
@@ -40,7 +47,8 @@ them at boot, so displayed order and played order can silently disagree until yo
 
 ## RVM — always `ruby-3.4.10@party`
 
-This project runs in the **`ruby-3.4.10@party` gemset**, per `.ruby-version`. Nothing belongs in
+This project runs in the **`ruby-3.4.10@party` gemset**, per `.ruby-version` + `.ruby-gemset`
+(split in two so rbenv/asdf don't choke on a gemset suffix). Nothing belongs in
 the default `ruby-3.4.10` gemset.
 
 **Before any `bundle install` / `gem install`, check `rvm current` says `ruby-3.4.10@party`.**
@@ -239,6 +247,18 @@ returns matching **collections and** the songs in them (`LocalLibrary#search_ent
 search matches **every segment** of a path, not just the directory holding the tracks — an artist
 folder like `Pop/ABBA` contains no files of its own and would otherwise never match.
 
+**The library is optional.** Blank `music_dir` ⇒ `PartyConfig.local_library?` is false and the
+whole local half switches off: `Sources::Registry` doesn't register `Local`, the Library tab is
+not rendered, `/library` redirects home, `current_browse_scope` ignores every non-history
+`browse=` param (so a bookmarked scope degrades to a plain search instead of silently scoping to
+a library that isn't there), and `LibraryScanner` returns `reason: :disabled` **without pruning**
+— turning it back on is one env var plus a scan. Two non-obvious pieces: `Enqueuer#enqueue`
+refuses `source: "local"` because a missing local file parks the head forever (nothing counts
+attempts for local the way `CacheYoutubeTrackJob` does for YouTube), and `LocalLibrary#music_dir`
+**raises** `LocalLibrary::Disabled` rather than returning `File.expand_path("")`, which is the
+working directory and would quietly make the app root "the library". "Off" is a config answer,
+not a filesystem one — an unmounted drive is still *on*.
+
 **`AlphaPager`** splits the flat listings into `A–K` pills sized from the actual distribution
 (≤1000/page; lists under that get no pills). An initial too big on its own is subdivided by second
 letter — M alone holds 1128 albums. Initials are transliterated, so Č files under C. Without this,
@@ -271,7 +291,15 @@ request specs use. Don't remove that guard.
 
 ## Misc
 
-- PostgreSQL is on **port 5433** (`dbuser`/`dbpass`), not 5432.
+- **Defaults are generic; this box's values live in the gitignored `.env`.** `config/party.yml`
+  and `config/database.yml` default to "no music library, local PostgreSQL over its unix socket
+  as the OS user" so a fresh clone runs. `.env` (loaded by `dotenv-rails` in development and
+  test, *and* by `docker compose`) is what puts this box back on port **5433** as
+  `dbuser`/`dbpass`, points `PARTY_MUSIC_DIR` at `/home/rhitu/Music`, and sets
+  `PARTY_HOSTS=party,party.rhitu.cz`. Delete a line from `.env` and you get the stranger's
+  defaults — including a suddenly library-less app.
+- `PARTY_HOSTS` also feeds the ActionCable origin list, so a new hostname needs only that one
+  variable; nothing is hard-coded in `config/application.rb` any more.
 - Local library is `/home/rhitu/Music` (~22k tracks). `bin/rails party:scan` to reindex; the
   in-app "Rescan" button was deliberately removed.
 - **Never `pgrep -f`/`pkill -f` a pattern that also appears in your own command line** — it

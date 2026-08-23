@@ -1,5 +1,6 @@
 class LibraryController < ApplicationController
   before_action :require_nick
+  before_action :require_local_library
 
   MODES = %w[all artists albums folders].freeze
 
@@ -23,6 +24,19 @@ class LibraryController < ApplicationController
   end
 
   private
+
+  # YouTube-only deployment: the tab is gone, so this can only be reached by a
+  # stale bookmark or a shared link. Root answers a turbo-frame request with the
+  # same `search_results` frame, so the redirect works from inside the frame too.
+  def require_local_library
+    return if local_library?
+
+    if request.get?
+      redirect_to root_path, alert: "No local library on this box — YouTube only."
+    else
+      toast("No local library on this box — YouTube only.", type: :alert)
+    end
+  end
 
   # No listing of its own — 22k rows is not a browse. It exists so a search can be
   # aimed at every song at once, which is what the other modes deliberately are not.

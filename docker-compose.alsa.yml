@@ -1,0 +1,27 @@
+# Audio via ALSA instead of PulseAudio — for a headless box with no sound
+# server running. Nothing else may hold the card: if PulseAudio/PipeWire is
+# running on the host it owns the device and mpv will fail to open it.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.alsa.yml up -d
+#
+# Pick a device with:
+#   docker compose -f docker-compose.yml -f docker-compose.alsa.yml \
+#     exec player mpv --audio-device=help
+# then set e.g. PARTY_AUDIO_DEVICE=alsa/hw:0,0 in .env.
+
+services:
+  player:
+    # `!override` replaces the base list instead of appending to it, so the
+    # host's PulseAudio socket is not mounted at all.
+    volumes: !override
+      - ${MUSIC_DIR:-empty_music}:/music:ro
+      - youtube_cache:/data/cache
+      - player_run:/data/run
+    # PULSE_SERVER is left pointing at /run/pulse/native, which no longer exists
+    # in the container: mpv's pulse output fails to initialise and it falls
+    # through to ALSA. Setting PARTY_AUDIO_DEVICE=alsa/... skips the probe.
+    devices:
+      - /dev/snd:/dev/snd
+    # /dev/snd/* is root:audio — the container user needs that group.
+    group_add:
+      - ${AUDIO_GID:-29}

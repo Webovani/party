@@ -1,0 +1,135 @@
+name: party
+
+# Party in containers: postgres + the same three processes the systemd units run
+# (web / jobs / player), all from one image. Settings live in .env — copy
+# .env.example first. Full walkthrough in docs/DOCKER.md.
+#
+#   docker compose up -d --build
+#   docker compose logs -f player
+#   docker compose exec web bin/rails party:scan
+
+x-app: &app
+  image: party:latest
+  build:
+    context: .
+    args:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+  # .env carries the PARTY_* knobs; the values below are fixed by this file
+  # (container-internal paths and the database address) and win over it.
+  env_file: [ .env ]
+  environment: &app-env
+    RAILS_ENV: production
+    SECRET_KEY_BASE: "${SECRET_KEY_BASE:?set SECRET_KEY_BASE in .env — generate one with `openssl rand -hex 64`}"
+    PARTY_DB_HOST: db
+    PARTY_DB_PORT: 5432
+    PARTY_DB_USER: ${POSTGRES_USER:-party}
+    PARTY_DB_PASSWORD: ${POSTGRES_PASSWORD:-party}
+    PARTY_DB_NAME: ${POSTGRES_DB:-party_production}
+    # Empty when MUSIC_DIR is unset — that is the switch for a YouTube-only
+    # box: no Library tab, no browsing, search asks YouTube alone.
+    PARTY_MUSIC_DIR: ${MUSIC_DIR:+/music}
+    PARTY_CACHE_DIR: /data/cache
+    PARTY_MPV_SOCKET: /data/run/party-mpv.sock
+  volumes: &app-volumes
+    # Read-only: the app only ever indexes and plays from the library. With
+    # MUSIC_DIR unset this resolves to an empty named volume and the app runs
+    # without a library at all (PARTY_MUSIC_DIR below goes blank with it).
+    - ${MUSIC_DIR:-empty_music}:/music:ro
+    # Downloaded YouTube audio. Shared: jobs write it, player and web read it,
+    # and the absolute path is stored in the DB — so keep this mount stable.
+    - youtube_cache:/data/cache
+  restart: unless-stopped
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-party}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-party}
+      POSTGRES_DB: ${POSTGRES_DB:-party_production}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Not published: reach it with `docker compose exec db psql`. Uncomment (and
+    # pick a port your host's own PostgreSQL is not using) if you want psql from
+    # outside the compose network.
+    # ports: [ "5434:5432" ]
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-party} -d ${POSTGRES_DB:-party_production}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # Puma. Also the process that runs db:prepare on boot (see bin/docker-entrypoint),
+  # which is why jobs and player wait for it to become healthy.
+  web:
+    <<: *app
+    command: [ "./bin/rails", "server", "-b", "0.0.0.0" ]
+    ports:
+      - "${WEB_PORT:-3008}:3000"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:3000/up || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  # Solid Queue: YouTube downloads (yt-dlp), loudness analysis (ffmpeg), library scans.
+  jobs:
+    <<: *app
+    command: [ "./bin/jobs" ]
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+
+  # The mpv-owning daemon. This is the container that needs the speakers.
+  player:
+    <<: *app
+    command: [ "./bin/player" ]
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+      # mpv talks to the host's PulseAudio/PipeWire server over its unix socket.
+      # Authentication is by peer uid, so PUID must match the socket's owner.
+      PULSE_SERVER: unix:/run/pulse/native
+      PULSE_COOKIE: /run/pulse/cookie
+    volumes:
+      - ${MUSIC_DIR:-empty_music}:/music:ro
+      - youtube_cache:/data/cache
+      # mpv's JSON IPC socket — private to this container, but it must live on a
+      # filesystem where a unix socket can be created.
+      - player_run:/data/run
+      # Defaults assume the first desktop user (uid 1000) of the machine running
+      # compose; set PULSE_SOCKET / PULSE_COOKIE in .env for anything else.
+      - ${PULSE_SOCKET:-/run/user/1000/pulse/native}:/run/pulse/native
+      - ${PULSE_COOKIE:-${HOME}/.config/pulse/cookie}:/run/pulse/cookie:ro
+    # SIGTERM means "finish the current song, then exit" — give it a full song
+    # before Docker reaches for SIGKILL. `docker compose kill player` is the
+    # impatient version.
+    stop_signal: SIGTERM
+    stop_grace_period: 900s
+    healthcheck:
+      test: [ "CMD-SHELL", "test -S /data/run/party-mpv.sock" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  pgdata:
+  youtube_cache:
+  player_run:
+  # Stands in for the library when MUSIC_DIR is unset, so /music is always a
+  # valid (if empty) mount and compose never has to conditionally include one.
+  empty_music:

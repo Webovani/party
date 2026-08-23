@@ -36,15 +36,25 @@ class QueueItemsController < ApplicationController
     after_change
   end
 
+  # Both bulk adds are library-only by definition; a YouTube-only deployment has
+  # no page that offers them, so this only catches a stale form.
   def add_album
+    return no_library unless local_library?
+
     bulk_add(LocalLibrary.new.album_tracks(params[:artist], params[:album]), "album")
   end
 
   def add_folder
+    return no_library unless local_library?
+
     bulk_add(LocalLibrary.new.folder_tracks(params[:path]), "folder")
   end
 
   private
+
+  def no_library
+    render turbo_stream: toast_stream("No local library on this box — YouTube only.", type: :alert)
+  end
 
   def bulk_add(scope, label)
     result = Enqueuer.new(current_nick).enqueue_all(scope)

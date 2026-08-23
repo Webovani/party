@@ -4,17 +4,27 @@ require "wahwah"
 # Incremental: unchanged files (by mtime) are skipped. Tracks whose files have
 # disappeared are pruned, unless they are currently in the queue.
 class LibraryScanner
-  Result = Struct.new(:scanned, :upserted, :pruned, :skipped, keyword_init: true)
+  # `reason` says WHY nothing was scanned: :disabled (no music_dir configured at
+  # all) or :missing (configured but not there right now — an unmounted drive).
+  Result = Struct.new(:scanned, :upserted, :pruned, :skipped, :reason, keyword_init: true)
 
-  def initialize(music_dir: PartyConfig[:music_dir], extensions: PartyConfig.audio_extensions)
-    @music_dir  = Pathname.new(music_dir.to_s)
+  def initialize(music_dir: PartyConfig.music_dir, extensions: PartyConfig.audio_extensions)
+    @music_dir  = music_dir.presence && Pathname.new(music_dir.to_s)
     @extensions = extensions.map(&:downcase).to_set
   end
 
   def call
+    # Both paths return WITHOUT pruning: the index is left exactly as it is, so
+    # unplugging the drive — or switching the library off and back on — costs
+    # nothing but the time to rescan.
+    if @music_dir.nil?
+      Rails.logger.info("[LibraryScanner] no music_dir configured; local library is off")
+      return Result.new(scanned: 0, upserted: 0, pruned: 0, skipped: true, reason: :disabled)
+    end
+
     unless @music_dir.directory?
       Rails.logger.warn("[LibraryScanner] #{@music_dir} not present (unmounted?); skipping scan")
-      return Result.new(scanned: 0, upserted: 0, pruned: 0, skipped: true)
+      return Result.new(scanned: 0, upserted: 0, pruned: 0, skipped: true, reason: :missing)
     end
 
     seen_uids = []
@@ -28,7 +38,7 @@ class LibraryScanner
     end
 
     pruned = prune_missing(seen_uids)
-    Result.new(scanned: seen_uids.size, upserted: upserted, pruned: pruned, skipped: false)
+    Result.new(scanned: seen_uids.size, upserted: upserted, pruned: pruned, skipped: false, reason: nil)
   end
 
   private

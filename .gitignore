@@ -68,8 +68,9 @@ yarn-debug.log*
 /storage/*
 !/storage/.keep
 /public/uploads
-/config/database.yml
-/config/party.yml
+# config/database.yml and config/party.yml are tracked on purpose: both are
+# fully env-driven (PARTY_*), hold no secrets, and a checkout without them
+# cannot boot — including a Docker build. Machine-specific values belong in .env.
 /deploy/party.env
 /deploy/systemd/party-jobs.service
 /deploy/systemd/party-player.service
