@@ -44,6 +44,7 @@ cutting a song, backups, and what to do when something does not start.
 | `mpv_ipc_socket` | `PARTY_MPV_SOCKET` | `tmp/party-mpv.sock` | mpv JSON IPC socket. |
 | `audio_device` | `PARTY_AUDIO_DEVICE` | (mpv default) | e.g. `alsa/hw:1,0`, `pulse/<sink>`. |
 | `audio_filter` | `PARTY_AUDIO_FILTER` | (none) | Extra mpv filter chain; per-track loudness gain is applied separately. |
+| `admin_nick` | `PARTY_ADMIN_NICK` | *(blank)* | Nick that may drag the progress bar and skip on its own vote, for unsticking a silent or hung track. Blank = nobody. |
 | `votes_to_skip` | `PARTY_VOTES_TO_SKIP` | `2` | Skip-vote threshold. |
 | `max_queue_length` | `PARTY_MAX_QUEUE_LENGTH` | `30` | Total queue cap. |
 | `max_queue_per_user` | `PARTY_MAX_QUEUE_PER_USER` | `20` | Per-nick pending cap. |

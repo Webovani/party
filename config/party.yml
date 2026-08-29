@@ -51,6 +51,11 @@ default: &default
   # queues a real song. Meant for long mixes that would otherwise hog the queue.
   filler_min_duration_ms: <%= ENV.fetch("PARTY_FILLER_MIN_MS", 12 * 60 * 1000) %>
 
+  # Nick allowed to drag the progress bar and to skip on its own vote, for
+  # unsticking a track that plays silence or hangs. Blank = nobody; there is no
+  # other privilege and no password, so it only works because the LAN is trusted.
+  admin_nick: <%= ENV.fetch("PARTY_ADMIN_NICK", "") %>
+
   # Fair-use / behavior (defaults mirror the existing mopidy [party] config).
   votes_to_skip: <%= ENV.fetch("PARTY_VOTES_TO_SKIP", 2) %>
   max_queue_length: <%= ENV.fetch("PARTY_MAX_QUEUE_LENGTH", 30) %>

@@ -301,6 +301,8 @@ healthcheck on `/up`, and whatever name a guest reached the box by.
 - There is no host allowlist any more: any name or IP that reaches the port gets in. Access is
   controlled by where the app listens — `WEB_BIND` for the container, `bin/rails server -b`
   outside it.
+- `PARTY_ADMIN_NICK` (this box: `Rhitu`) is the only privilege in the app: seek, and skip on
+  one vote. Nick match only — anyone who types it has it.
 - Local library is `/home/rhitu/Music` (~22k tracks). `bin/rails party:scan` to reindex; the
   in-app "Rescan" button was deliberately removed.
 - **Never `pgrep -f`/`pkill -f` a pattern that also appears in your own command line** — it

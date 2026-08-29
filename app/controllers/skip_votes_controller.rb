@@ -7,7 +7,9 @@ class SkipVotesController < ApplicationController
 
     SkipVote.find_or_create_by(queue_item: item, nick: current_nick)
 
-    PlayerCommands.skip if item.skip_vote_count >= PartyConfig[:votes_to_skip].to_i
+    # The admin nick skips on its own vote — the way out of a track that is
+    # stuck or silent when there is nobody else around to vote with.
+    PlayerCommands.skip if admin? || item.skip_vote_count >= PartyConfig[:votes_to_skip].to_i
     PartyBroadcaster.refresh # other clients
 
     # Update the voter's own now-playing (their own morph broadcast is suppressed).

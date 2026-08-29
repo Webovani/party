@@ -5,13 +5,19 @@ class ApplicationController < ActionController::Base
   # Changes to the importmap will invalidate the etag for HTML responses
   stale_when_importmap_changes
 
-  helper_method :current_nick, :current_user, :signed_in?, :current_browse_scope, :local_library?
+  helper_method :current_nick, :current_user, :signed_in?, :current_browse_scope, :local_library?,
+                :admin?
 
   private
 
   # Is there a local library at all? Blank music_dir = YouTube-only deployment.
   def local_library?
     PartyConfig.local_library?
+  end
+
+  # Whoever is using PartyConfig.admin_nick: may seek, and may skip alone.
+  def admin?
+    PartyConfig.admin?(current_nick)
   end
 
   # Self-set nickname, stored in a signed cookie. No password — trusted LAN.

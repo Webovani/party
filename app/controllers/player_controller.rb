@@ -5,7 +5,7 @@ class PlayerController < ApplicationController
   def pause  = run_command { PlayerCommands.pause }
   def skip   = run_command { PlayerCommands.skip }
   def volume = run_command { PlayerCommands.set_volume(params[:volume]) }
-  def seek   = run_command { PlayerCommands.seek(params[:seconds]) if current_nick == "Rhitu" }
+  def seek   = run_command { PlayerCommands.seek(params[:seconds]) if admin? }
 
   private
 

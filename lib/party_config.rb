@@ -33,6 +33,15 @@ module PartyConfig
     music_dir.present?
   end
 
+  def admin_nick
+    all[:admin_nick].presence
+  end
+
+  # Matched case-insensitively: nicks are typed in by hand every party.
+  def admin?(nick)
+    admin_nick.present? && nick.present? && nick.to_s.strip.casecmp?(admin_nick)
+  end
+
   def audio_extensions
     all[:audio_extensions].map { |e| e.to_s.downcase }
   end

@@ -44,9 +44,12 @@
 
     <div class="skip">
       <%= button_to skip_votes_path, class: "cbtn", form: { class: "inline" },
-            disabled: current_item.nil?, aria: { label: "Vote to skip" } do %><%= player_icon(:next) %><% end %>
+            disabled: current_item.nil?,
+            aria: { label: admin? ? "Skip now" : "Vote to skip" } do %><%= player_icon(:next) %><% end %>
       <% if current_item %>
-        <span class="votes">skip votes <%= current_item.skip_vote_count %>/<%= votes_to_skip %></span>
+        <span class="votes">
+          <%= admin? ? "skip now" : "skip votes #{current_item.skip_vote_count}/#{votes_to_skip}" %>
+        </span>
       <% end %>
     </div>
 
