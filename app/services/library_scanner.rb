@@ -8,9 +8,20 @@ class LibraryScanner
   # all) or :missing (configured but not there right now — an unmounted drive).
   Result = Struct.new(:scanned, :upserted, :pruned, :skipped, :reason, keyword_init: true)
 
-  def initialize(music_dir: PartyConfig.music_dir, extensions: PartyConfig.audio_extensions)
+  # How often the progress callback fires while walking. Throttled here because
+  # only the scanner knows how fast it ticks, and 22k callbacks is not progress
+  # reporting; how (and whether) to render a tick is the caller's business.
+  PROGRESS_INTERVAL = 0.2
+
+  # progress: an optional callable invoked as (phase, scanned:, upserted:) with
+  # phase in :start (directory accepted, walk beginning), :scanning (throttled,
+  # plus one final tick) and :pruning. A scan of a real library takes minutes;
+  # without this it is silent from the first file to the summary.
+  def initialize(music_dir: PartyConfig.music_dir, extensions: PartyConfig.audio_extensions,
+                 progress: nil)
     @music_dir  = music_dir.presence && Pathname.new(music_dir.to_s)
     @extensions = extensions.map(&:downcase).to_set
+    @progress   = progress
   end
 
   def call
@@ -30,26 +41,42 @@ class LibraryScanner
     seen_uids = []
     upserted  = 0
 
+    report(:start, 0, 0)
     each_audio_file do |path|
       Rails.logger.debug("[LibraryScanner] checking: #{path}")
       uid = path
       seen_uids << uid
       upserted += 1 if upsert(uid, path)
+      report(:scanning, seen_uids.size, upserted)
     end
+    report(:scanning, seen_uids.size, upserted, force: true)
 
+    report(:pruning, seen_uids.size, upserted)
     pruned = prune_missing(seen_uids)
     Result.new(scanned: seen_uids.size, upserted: upserted, pruned: pruned, skipped: false, reason: nil)
   end
 
   private
 
+  # Block form of Dir.glob, so files are yielded as they are found: building the
+  # whole 22k-entry list first would mean a minute of silence before the first tick.
   def each_audio_file
-    Dir[File.join(@music_dir, '**', '*')].each do |path|
+    Dir.glob(File.join(@music_dir, "**", "*")) do |path|
       next unless File.file?(path)
 
       ext = File.extname(path).delete_prefix(".").downcase
       yield path if @extensions.include?(ext)
     end
+  end
+
+  def report(phase, scanned, upserted, force: false)
+    return if @progress.nil?
+
+    now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    return if !force && phase == :scanning && @last_report && now - @last_report < PROGRESS_INTERVAL
+
+    @last_report = now
+    @progress.call(phase, scanned: scanned, upserted: upserted)
   end
 
   # Returns true if the row was created or updated, false if skipped (unchanged).
