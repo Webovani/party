@@ -21,4 +21,9 @@ class HistoryController < ApplicationController
     @frame_partial = "history/listing"
     render_frame_or_page
   end
+
+  # Every play and skip, unlike the listing above: no dedup per track, no LIMIT.
+  def export
+    send_data HistoryExport.new.to_csv, filename: HistoryExport.filename, type: "text/csv"
+  end
 end

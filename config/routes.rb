@@ -44,6 +44,7 @@ Rails.application.routes.draw do
   # Browse the local library and play history
   get "library", to: "library#index"
   get "history", to: "history#index"
+  get "history/export", to: "history#export", defaults: { format: "csv" }
 
   # Local library maintenance
   post "library/rescan", to: "library#rescan"

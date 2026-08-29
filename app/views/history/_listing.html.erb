@@ -1,5 +1,9 @@
 <%= render "shared/scope", scope: @scope, listing: true %>
-<h3 class="source-head">Recently played</h3>
+<h3 class="source-head">
+  Recently played
+  <%= link_to "export CSV", history_export_path, class: "export-link",
+        data: { turbo: false } %>
+</h3>
 <% if @tracks.empty? %>
   <p class="muted">Nothing has played yet.</p>
 <% else %>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_22_170000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_29_152013) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -31,6 +31,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_22_170000) do
     t.bigint "position", null: false
     t.string "queued_by", null: false
     t.integer "resume_position_ms", default: 0, null: false
+    t.datetime "started_at"
     t.string "state", default: "queued", null: false
     t.bigint "track_id", null: false
     t.datetime "updated_at", null: false

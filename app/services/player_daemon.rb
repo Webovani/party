@@ -302,7 +302,8 @@ class PlayerDaemon
   end
 
   def play_item(state, item, track)
-    item.update!(state: "playing")
+    # Last start, not the first: a resumed filler pairs with the end that follows.
+    item.update!(state: "playing", started_at: Time.current)
     @loaded_item_id = item.id
     state.update!(status: "playing", current_queue_item_id: item.id,
                   position_ms: 0, duration_ms: track.duration_ms.to_i)

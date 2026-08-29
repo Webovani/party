@@ -313,6 +313,7 @@ turbo-frame#search_results[busy]::after {
   color: var(--muted);
   margin: 18px 2px 8px;
 }
+.export-link { float: right; text-transform: none; letter-spacing: 0; }
 .results { list-style: none; margin: 0; padding: 0; }
 .result {
   display: flex;

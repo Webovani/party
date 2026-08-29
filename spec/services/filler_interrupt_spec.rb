@@ -52,6 +52,17 @@ RSpec.describe PlayerDaemon, "filler interruption" do
     expect(PlayerState.instance.position_ms).to eq(612_500)
   end
 
+  it "stamps started_at on play, and again when a filler resumes" do
+    filler = create(:queue_item, queued_by: "dj", track: measured(45 * 60 * 1000))
+
+    daemon.send(:play_item, PlayerState.instance, filler, filler.track)
+    expect(filler.reload.started_at).to be_present
+
+    filler.update_column(:started_at, 1.hour.ago)
+    daemon.send(:play_item, PlayerState.instance, filler, filler.track)
+    expect(filler.reload.started_at).to be > 1.minute.ago
+  end
+
   it "leaves a filler alone when nothing else is waiting" do
     filler = create(:queue_item, queued_by: "dj", track: measured(45 * 60 * 1000))
     start_playing(filler)

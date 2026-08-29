@@ -41,6 +41,9 @@ gem "image_processing", "~> 1.2"
 # Read audio file tags (pure Ruby, no native deps) for the local library scanner
 gem "wahwah"
 
+# History export. Not a default gem since Ruby 3.4.
+gem "csv"
+
 group :development, :test do
   # Machine-specific settings (DB address, music dir, host names) come from a
   # gitignored .env — the same file docker compose reads, so a native run and a
