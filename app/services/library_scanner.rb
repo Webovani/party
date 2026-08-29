@@ -1,4 +1,6 @@
 require "wahwah"
+require "open3"
+require "json"
 
 # Walks the local music directory and upserts Track rows (source: "local").
 # Incremental: unchanged files (by mtime) are skipped. Tracks whose files have
@@ -115,14 +117,49 @@ class LibraryScanner
 
   def apply_tags(track, path)
     filename = File.basename(path, File.extname(path))
+    tags     = read_tags(path)
+
+    track.title       = sanitize(tags[:title].presence) || filename
+    track.artist      = sanitize(tags[:artist].presence)
+    track.album       = sanitize(tags[:album].presence)
+    track.duration_ms = tags[:duration_ms]
+  end
+
+  # wahwah 1.6.7 raises on files ffprobe reads fine - a false MPEG frame sync
+  # gives IndexError, a truncated COMM frame NoMethodError - and the raise loses
+  # the tags it had already parsed. ffprobe costs ~50ms; ffmpeg is required anyway.
+  def read_tags(path)
+    tags = wahwah_tags(path)
+    return tags if tags && (tags[:title].present? || tags[:duration_ms].present?)
+
+    ffprobe_tags(path) || tags || {}
+  end
+
+  def wahwah_tags(path)
     tag = WahWah.open(path)
-    track.title    = sanitize(tag.title.presence) || filename
-    track.artist   = sanitize(tag.artist.presence)
-    track.album    = sanitize(tag.album.presence)
-    track.duration_ms = tag.duration ? (tag.duration.to_f * 1000).round : nil
+    { title: tag.title, artist: tag.artist, album: tag.album,
+      duration_ms: tag.duration ? (tag.duration.to_f * 1000).round : nil }
   rescue => e
-    Rails.logger.warn("[LibraryScanner] tag read failed for #{path}: #{e.class}: #{e.message}")
-    track.title ||= filename
+    Rails.logger.info("[LibraryScanner] wahwah failed for #{path}: #{e.class}: #{e.message}")
+    nil
+  end
+
+  def ffprobe_tags(path)
+    out, status = Open3.capture2(
+      "ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", path
+    )
+    return nil unless status.success?
+
+    format = JSON.parse(out)["format"]
+    return nil if format.nil?
+
+    # Tag keys vary in case between containers (TITLE in FLAC, title in MP3).
+    tags = (format["tags"] || {}).transform_keys(&:downcase)
+    { title: tags["title"], artist: tags["artist"], album: tags["album"],
+      duration_ms: format["duration"].present? ? (format["duration"].to_f * 1000).round : nil }
+  rescue => e
+    Rails.logger.warn("[LibraryScanner] ffprobe failed for #{path}: #{e.class}: #{e.message}")
+    nil
   end
 
   def sanitize(string)
