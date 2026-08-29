@@ -5,7 +5,7 @@ sets a nickname, searches music (local library + YouTube), and adds tracks to on
 shared queue. Audio plays out of the host machine's speakers via **mpv**. Fair-use
 rules stop one person hogging the queue; skip-voting lets the group move on.
 
-## Run it
+## How to run it
 
 You need Docker with the Compose plugin (2.24+) and a machine with speakers. The
 image brings everything else: PostgreSQL, mpv, ffmpeg, yt-dlp.
@@ -119,8 +119,3 @@ For a permanent install without containers, run the three under whatever
 supervisor you already use — systemd user units work well, and the player wants
 `KillMode=mixed` with a generous `TimeoutStopSec` so a graceful stop can wait for
 the current song to finish.
-
-Two things that surprise people: some videos refuse the default yt-dlp client
-("not available on this app") and fall back to the Android one, and `party:scan`
-is incremental by file mtime, so a re-tagged file is only re-read once its mtime
-moves.
