@@ -1,8 +1,8 @@
 # Running Party in Docker
 
-Four containers: `db` (PostgreSQL) plus the same three processes the systemd
-units run — `web` (Puma), `jobs` (Solid Queue) and `player` (owns mpv). All three
-app roles come from one image, which carries **mpv, ffmpeg and yt-dlp**.
+Four containers: `db` (PostgreSQL) plus the three app processes — `web` (Puma),
+`jobs` (Solid Queue) and `player` (owns mpv). All three roles come from one image,
+which carries **mpv, ffmpeg and yt-dlp**.
 
 Everything you can tune lives in `.env` (start from `.env.example`).
 
@@ -12,7 +12,8 @@ Everything you can tune lives in `.env` (start from `.env.example`).
 
 - Docker Engine with the Compose plugin (`docker compose version` ≥ 2.24 — the
   ALSA override uses the `!override` tag).
-- The music library on a local path.
+- A music library on a local path, if you want one — without it the app runs
+  YouTube-only.
 - Something to play sound through — read **[Audio](#4-audio)** *before* the first
   run; one setting there (`PUID`) is baked into the image at build time.
 
@@ -41,10 +42,6 @@ docker compose ps
 
 Open `http://<host>:3008` (`WEB_PORT` in `.env`) from any device on the LAN, set a
 nickname, queue something.
-
-> The non-Docker deployment uses port **3007** and whatever PostgreSQL is on the
-> host; the compose stack avoids both so the two can coexist.
-> They cannot share speakers, though — see [§7](#7-coexisting-with-the-systemd-deployment).
 
 ## 2.5 Running without a music library
 
@@ -97,7 +94,8 @@ env-driven and hold no secrets.
 Two paths are absolute *inside the database* and must stay stable across
 restarts: the YouTube cache (`/data/cache`, the `youtube_cache` volume) and each
 local track's path (`/music/...`). Changing where either is mounted invalidates
-what is already indexed — see [§8](#8-keeping-an-existing-database).
+what is already indexed: rescan to fix the library, and cached YouTube files
+re-download on demand.
 
 ## 4. Audio
 
@@ -215,8 +213,9 @@ Which container to restart after a change:
 | `.env` value used by playback (audio device/filter, loudness) | `docker compose up -d player` |
 | `PUID`/`PGID` | `docker compose up -d --build` (they are build args) |
 
-Backups — the queue, nicks, library index and loudness measurements are all in
-Postgres:
+The data — queue, nicks, library index, loudness measurements — lives in the
+`pgdata` volume and survives `up`, `restart` and `down`. Only `down -v` deletes
+it. For a copy you can keep:
 
 ```bash
 docker compose exec -T db pg_dump -U party party_production > party-backup.sql
@@ -226,8 +225,8 @@ docker compose exec -T db pg_dump -U party party_production > party-backup.sql
 
 `.env.example` is the reference: it lists every `PARTY_*` knob with its default
 and a note on what it does. The originals live in `config/party.yml`, which reads
-the same environment variables, so the containerised and systemd deployments
-behave identically.
+the same environment variables, so a containerised and a host deployment behave
+identically.
 
 Two settings exist only for containers:
 
@@ -238,52 +237,11 @@ Two settings exist only for containers:
 - `PARTY_DB_PREPARE` — `auto` (default: the web role prepares the schema),
   `true`, or `false`.
 
-Behind nginx, point the upstream at `localhost:${WEB_PORT}` and put the name you
-serve under in `PARTY_HOSTS`. It already proxies `/cable`, which Turbo's live updates
-need.
+Behind a reverse proxy, point the upstream at `localhost:${WEB_PORT}`, proxy
+`/cable` as well — Turbo's live updates need it — and put the name you serve under
+in `PARTY_HOSTS`.
 
-## 7. Coexisting with the systemd deployment
-
-Different ports, different databases, different YouTube cache — but **one set of
-speakers**. Two players will happily play at once and it sounds exactly as bad as
-it reads. Before starting the compose stack:
-
-```bash
-bin/party stop player     # or: bin/party stop all
-```
-
-To go the other way permanently, `systemctl --user disable --now party-web
-party-jobs party-player`.
-
-## 8. Keeping an existing database
-
-A fresh stack starts empty (rescan the library and you are done — the queue and
-nick history are the only things that are not reproducible). To carry the
-existing data over, the absolute paths in it have to keep resolving:
-
-```bash
-# 1. dump from the host's PostgreSQL
-pg_dump party_development > party.sql   # add -h/-p/-U if your PARTY_DB_* say so
-
-# 2. mount the library at the SAME path the old rows refer to — say the old
-#    deployment indexed /srv/music. In .env:
-#      MUSIC_DIR=/srv/music
-#    and add to docker-compose.override.yml for web/jobs/player:
-#      volumes:
-#        - /srv/music:/srv/music:ro
-#      environment:
-#        PARTY_MUSIC_DIR: /srv/music
-
-# 3. restore
-docker compose up -d db
-docker compose exec -T db psql -U party party_production < party.sql
-```
-
-Cached YouTube files keep their old `tmp/youtube_cache` paths in `cache_path`; the
-simplest fix is to let them re-download (the queue re-caches on demand), or copy
-the files into the volume and update the column.
-
-## 9. Troubleshooting
+## 7. Troubleshooting
 
 | Symptom | Cause |
 |---|---|

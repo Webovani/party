@@ -5,85 +5,37 @@ sets a nickname, searches music (local library + YouTube), and adds tracks to on
 shared queue. Audio plays out of the host machine's speakers via **mpv**. Fair-use
 rules stop one person hogging the queue; skip-voting lets the group move on.
 
-## Stack
+## Run it
 
-- **Ruby 3.4 / Rails 8.1**, Hotwire (Turbo + Stimulus), Propshaft, importmap.
-- **PostgreSQL** (primary + Solid Queue/Cache/Cable databases).
-- **mpv** for playback (JSON IPC), **yt-dlp** for caching YouTube audio.
-- **wahwah** (pure Ruby) for reading local audio tags.
-
-## Architecture
-
-Three processes share one PostgreSQL database:
-
-| Process | What it does |
-|---|---|
-| **web** (Puma) | Serves the mobile UI, search, queue & control endpoints. |
-| **player** (`bin/player`) | Owns an mpv child, drives the queue, sole author of `PlayerState`. |
-| **jobs** (Solid Queue) | YouTube caching (`yt-dlp`) and local library scanning. |
-
-- Rails/jobs → player commands travel over **PostgreSQL `LISTEN/NOTIFY`**
-  (`lib/player_commands.rb` ↔ `PlayerDaemon`).
-- Live UI updates use **Turbo 8 page refreshes (morphing)** broadcast to a shared
-  `party` stream (`lib/party_broadcaster.rb`). The now-playing progress bar animates
-  client-side between refreshes, so we never broadcast per-second ticks.
-- **Sources** (`lib/sources/`) are a pluggable registry (`Local`, `Youtube`) kept
-  Rails-agnostic so they could be extracted into a gem. YouTube search is a pure-Ruby
-  reimplementation of the mopidy_youtube InnerTube hack
-  (`lib/sources/youtube/innertube_client.rb`).
-
-## Prerequisites
-
-- PostgreSQL. With no configuration the app connects over the local unix socket
-  as your OS user; set `PARTY_DB_HOST` / `PARTY_DB_PORT` / `PARTY_DB_USER` /
-  `PARTY_DB_PASSWORD` for anything else.
-- `mpv`, `yt-dlp`, and `ffmpeg` on `PATH`.
-- `foreman` for `bin/dev` (`gem install foreman`).
-
-## Setup
+You need Docker with the Compose plugin (2.24+) and a machine with speakers. The
+image brings everything else: PostgreSQL, mpv, ffmpeg, yt-dlp.
 
 ```bash
-bundle install
-cp .env.example .env        # optional: only if a default needs changing
-bin/rails db:prepare        # creates primary + cache/queue/cable DBs, loads schema
+cp .env.example .env          # fill in the four settings below
+docker compose up -d --build  # first run also creates the schema
 ```
 
-`.env` is read in development and test as well as by `docker compose`, so one
-file configures both. Everything in it has a working default — out of the box the
-app runs **YouTube-only**; point `PARTY_MUSIC_DIR` at a music directory and run
-`bin/rails party:scan` to switch the local library on.
+| In `.env` | |
+|---|---|
+| `SECRET_KEY_BASE` | required — `openssl rand -hex 64` |
+| `PULSE_SOCKET` | the host's audio socket — `echo $XDG_RUNTIME_DIR/pulse/native` |
+| `PUID` / `PGID` | your uid/gid (`id -u`, `id -g`) — must match the socket's owner |
+| `MUSIC_DIR` | music library path, or empty to run YouTube-only |
 
-## Run
-
-Three ways, all running the same three processes:
-
-**Docker** (self-contained: brings its own PostgreSQL, mpv, ffmpeg and yt-dlp) —
-see **[docs/DOCKER.md](docs/DOCKER.md)**, which also covers how audio gets out of a
-container:
+Open `http://<host>:3008` from any device on the LAN, set a nickname, queue
+something. With a library, index it once (and after adding music):
 
 ```bash
-cp .env.example .env        # set SECRET_KEY_BASE, MUSIC_DIR, PULSE_SOCKET, PUID
-docker compose up -d --build
 docker compose exec web bin/rails party:scan
 ```
 
-**systemd user units** — how it actually runs on the party box, on port 3007
-behind nginx (`deploy/systemd/`, driven by `bin/party start|stop|restart|logs`).
-
-**Foreground**, for development:
-
-```bash
-bin/dev                       # web + jobs + player (Procfile.dev)
-bin/rails server -b 0.0.0.0   # or the pieces individually
-bin/jobs                      # Solid Queue worker
-bin/player                    # mpv player daemon
-```
-
-Then open `http://<host>:<port>` from any device on the LAN. Set a nickname and go.
+**[docs/DOCKER.md](docs/DOCKER.md)** covers the rest: getting audio out of a
+container (PulseAudio, ALSA, over the network), restarting the player without
+cutting a song, backups, and what to do when something does not start.
 
 ## Configuration
 
-`config/party.yml` (all overridable by env var):
+`config/party.yml`, all overridable by env var — `.env` is where you set them:
 
 | Key | Env | Default | Notes |
 |---|---|---|---|
@@ -112,33 +64,62 @@ refused at add time — an unplayable local file would otherwise park the player
 it forever. A configured library on an unmounted drive is *not* "off"; that is
 temporary, and the index stays browsable.
 
-Database connection: `PARTY_DB_HOST` / `PARTY_DB_PORT` / `PARTY_DB_USER` /
-`PARTY_DB_PASSWORD` / `PARTY_DB_NAME`. All blank by default, i.e. the local
-PostgreSQL over its unix socket as the current OS user.
+**Reaching the app by name.** Private-range IPs (10/8, 172.16/12, 192.168/16) and
+localhost are always allowed. `PARTY_HOSTS` adds hostnames (comma-separated), each
+allowed as a WebSocket origin too, so live updates work behind a proxy without a
+second setting; `PARTY_ALLOWED_ORIGINS` exists for the cases that need one anyway.
+`PARTY_HOSTS=*` turns host checking off entirely. **This app has no authentication
+by design — keep it on the LAN.**
 
-Host authorization: private-range IPs (10/8, 172.16/12, 192.168/16) and
-localhost are always allowed. `PARTY_HOSTS` adds names you reach the box by
-(comma-separated) — each one is allowed as a WebSocket origin too, so live
-updates work behind a proxy without a second setting; `PARTY_ALLOWED_ORIGINS`
-exists for the cases that need one anyway. `PARTY_HOSTS=*` turns host checking
-off entirely. **This app has no authentication by design — keep it on the LAN.**
+## Architecture
 
-`.env.example` collects all of it in one file for the Docker deployment.
+- **Ruby 3.4 / Rails 8.1**, Hotwire (Turbo + Stimulus), Propshaft, importmap.
+- **PostgreSQL** (primary + Solid Queue/Cache/Cable databases).
+- **mpv** for playback (JSON IPC), **yt-dlp** for caching YouTube audio.
+- **wahwah** for reading local audio tags, ffmpeg where it gives up.
 
-## Testing
+Three processes share one PostgreSQL database:
+
+| Process | What it does |
+|---|---|
+| **web** (Puma) | Serves the mobile UI, search, queue & control endpoints. |
+| **player** (`bin/player`) | Owns an mpv child, drives the queue, sole author of `PlayerState`. |
+| **jobs** (Solid Queue) | YouTube caching (`yt-dlp`) and local library scanning. |
+
+- Rails/jobs → player commands travel over **PostgreSQL `LISTEN/NOTIFY`**
+  (`lib/player_commands.rb` ↔ `PlayerDaemon`).
+- Live UI updates use **Turbo 8 page refreshes (morphing)** broadcast to a shared
+  `party` stream (`lib/party_broadcaster.rb`). The now-playing progress bar animates
+  client-side between refreshes, so we never broadcast per-second ticks.
+- **Sources** (`lib/sources/`) are a pluggable registry (`Local`, `Youtube`) kept
+  Rails-agnostic so they could be extracted into a gem. YouTube search is a pure-Ruby
+  reimplementation of the mopidy_youtube InnerTube hack
+  (`lib/sources/youtube/innertube_client.rb`).
+- Adding a source = add `lib/sources/<name>.rb` and register it in `Sources::Registry`.
+
+## Development
+
+Running the three processes on the host instead of in containers needs Ruby 3.4,
+PostgreSQL, and `mpv`, `yt-dlp`, `ffmpeg` on `PATH`:
 
 ```bash
+bundle install
+bin/rails db:prepare        # primary + cache/queue/cable DBs, loads schema
+bin/dev                     # web + jobs + player (needs foreman)
 bundle exec rspec
 ```
 
-Covers the InnerTube search parser (fixture-based, no network) and the full queue
-flow (nick gate, enqueue, fair-use rules, queue management, skip-vote threshold).
+`.env` is read here too (development and test), so one file configures both ways
+of running. The database defaults to the local PostgreSQL over its unix socket as
+your OS user; `PARTY_DB_HOST` / `PARTY_DB_PORT` / `PARTY_DB_USER` /
+`PARTY_DB_PASSWORD` / `PARTY_DB_NAME` change that.
 
-## Notes
+For a permanent install without containers, run the three under whatever
+supervisor you already use — systemd user units work well, and the player wants
+`KillMode=mixed` with a generous `TimeoutStopSec` so a graceful stop can wait for
+the current song to finish.
 
-- **YouTube caching fallback:** some videos refuse the default yt-dlp client
-  ("not available on this app"); the downloader falls back to the Android client.
-- **Local library** is re-indexed with `bin/rails party:scan` or the in-app
-  "Rescan" button (incremental by file mtime).
-- Adding a new source = add `lib/sources/<name>.rb` and register it in
-  `Sources::Registry`.
+Two things that surprise people: some videos refuse the default yt-dlp client
+("not available on this app") and fall back to the Android one, and `party:scan`
+is incremental by file mtime, so a re-tagged file is only re-read once its mtime
+moves.
