@@ -63,6 +63,18 @@ RSpec.describe PlayerDaemon, "filler interruption" do
     expect(filler.reload.started_at).to be > 1.minute.ago
   end
 
+  it "hands the item back when mpv refuses to load it" do
+    filler = create(:queue_item, queued_by: "dj", track: measured(45 * 60 * 1000),
+                    resume_position_ms: 67_843)
+    allow(mpv).to receive(:loadfile).and_raise(MpvClient::Error, "invalid parameter")
+
+    daemon.send(:play_item, PlayerState.instance, filler, filler.track)
+
+    expect(filler.reload).to have_attributes(state: "promoted", resume_position_ms: 0)
+    expect(daemon.instance_variable_get(:@loaded_item_id)).to be_nil
+    expect(PlayerState.instance.current_queue_item_id).to be_nil
+  end
+
   it "leaves a filler alone when nothing else is waiting" do
     filler = create(:queue_item, queued_by: "dj", track: measured(45 * 60 * 1000))
     start_playing(filler)

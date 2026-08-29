@@ -8,6 +8,11 @@ require "timeout"
 class MpvClient
   class Error < StandardError; end
 
+  # mpv 0.38 put an `index` argument before the per-file options: the 3-argument
+  # form is rejected as "invalid parameter" there, so a resume never loads. -1
+  # means "no index" and `replace` ignores it. Unknown version = newest form.
+  LOADFILE_INDEX_SINCE = Gem::Version.new("0.38")
+
   def initialize(socket_path)
     @socket_path = socket_path.to_s
     @write_mutex = Mutex.new
@@ -16,6 +21,7 @@ class MpvClient
     @pending = {}          # request_id => Queue
     @event_handler = nil
     @event_queue = Queue.new
+    @loadfile_takes_index = nil
   end
 
   def on_event(&block)
@@ -68,11 +74,22 @@ class MpvClient
   def loadfile(path, start_seconds: 0)
     return command("loadfile", path, "replace") if start_seconds.to_f <= 0
 
-    command("loadfile", path, "replace", "start=#{start_seconds.to_f.round(3)}")
+    options = "start=#{start_seconds.to_f.round(3)}"
+    args = loadfile_takes_index? ? [ "replace", -1, options ] : [ "replace", options ]
+    command("loadfile", path, *args)
   end
   def stop                      = command("stop")
 
   private
+
+  def loadfile_takes_index?
+    return @loadfile_takes_index unless @loadfile_takes_index.nil?
+
+    version = get_property("mpv-version").to_s[/(\d+\.\d+(?:\.\d+)?)/, 1]
+    @loadfile_takes_index = version.nil? || Gem::Version.new(version) >= LOADFILE_INDEX_SINCE
+  rescue Error
+    @loadfile_takes_index = true
+  end
 
   def monotonic = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 

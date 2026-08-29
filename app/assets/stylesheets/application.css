@@ -307,13 +307,30 @@ turbo-frame#search_results[busy]::after {
 }
 .browse-row .addbtn { flex: none; margin-right: 4px; }
 .source-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
   margin: 18px 2px 8px;
 }
-.export-link { float: right; text-transform: none; letter-spacing: 0; }
+.export-link {
+  flex: none;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  white-space: nowrap;
+}
+.export-link:hover { color: var(--text); background: var(--bg-elev2); }
 .results { list-style: none; margin: 0; padding: 0; }
 .result {
   display: flex;

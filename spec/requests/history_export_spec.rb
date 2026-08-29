@@ -19,8 +19,11 @@ RSpec.describe "History export", type: :request do
 
     get history_path
 
-    expect(response.body).to include(history_export_path)
-    expect(response.body).to match(/data-turbo="false"[^>]*>\s*export CSV|export CSV/)
+    link = response.body[/<a[^>]*href="#{Regexp.escape(history_export_path)}"[^>]*>/] ||
+           response.body[/<a[^>]*class="export-link"[^>]*>/]
+
+    expect(link).to be_present
+    expect(link).to include('data-turbo="false"')   # a frame cannot hold a download
   end
 
   it "needs a nickname like the rest of the app" do

@@ -159,6 +159,10 @@ class PlayerDaemon
     end
   end
 
+  # A pause belongs to a song: paused with nothing loaded is idle, not paused, or
+  # the daemon ignores a full queue until someone presses Play. Stopped stays.
+  def paused_on_a_song?(state) = state.paused? && state.current_queue_item.present?
+
   def do_pause
     @mpv.set_property("pause", true)
     PlayerState.instance.update!(status: "paused")
@@ -217,7 +221,7 @@ class PlayerDaemon
     # Adding a track should get music going, unless the user explicitly paused.
     #   * a stopped-but-cued song   -> resume it (Stop keeps the current song)
     #   * idle / drained / stale    -> start the next queued track
-    unless state.paused?
+    unless paused_on_a_song?(state)
       if cued
         do_play if state.stopped?
       elsif QueueItem.head
@@ -314,6 +318,19 @@ class PlayerDaemon
     state.update!(position_ms: resume_at)
     PrecacheQueueJob.perform_later
     PartyBroadcaster.refresh
+  rescue MpvClient::Error => e
+    load_failed(state, item, e)
+  end
+
+  # @loaded_item_id is already set here, so leaving the item current wedges the
+  # ticker on a track that never started. Promoted keeps its place; clearing the
+  # resume position makes the retry a plain load.
+  def load_failed(state, item, error)
+    Rails.logger.error("[player] load failed for '#{item.track.title}': #{error.message}")
+    item.update!(state: "promoted", resume_position_ms: 0)
+    @loaded_item_id = nil
+    state.update!(current_queue_item_id: nil, position_ms: 0, duration_ms: 0)
+    PartyBroadcaster.refresh
   end
 
   def ensure_caching(track)
@@ -398,7 +415,7 @@ class PlayerDaemon
       state = PlayerState.instance
       if state.playing? && @loaded_item_id
         persist_position(state)
-      elsif state.playing? && @loaded_item_id.nil? && QueueItem.head
+      elsif @loaded_item_id.nil? && QueueItem.head && !state.stopped? && !paused_on_a_song?(state)
         advance # retry after cache completes / new track added
       end
     end
