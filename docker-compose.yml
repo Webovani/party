@@ -71,7 +71,8 @@ services:
     <<: *app
     command: [ "./bin/rails", "server", "-b", "0.0.0.0" ]
     ports:
-      - "${WEB_PORT:-3008}:3000"
+      # WEB_BIND = which host interface to publish on; unset means all of them.
+      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-3008}:3000"
     healthcheck:
       test: [ "CMD-SHELL", "curl -fsS http://localhost:3000/up || exit 1" ]
       interval: 10s

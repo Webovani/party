@@ -230,16 +230,15 @@ identically.
 
 Two settings exist only for containers:
 
-- `PARTY_HOSTS` — extra `Host` values to accept, for a name you reach the box by.
-  Private-range IPs and `localhost` are always allowed, and each name listed here
-  is allowed as a WebSocket origin too; `*` turns host checking off entirely
-  (also disables the WebSocket origin check — LAN-only deployments only).
+- `WEB_BIND` — which host interface the UI is published on, blank for all of
+  them. No login and any `Host` is accepted, so this is the access control:
+  `192.168.1.10` for one LAN address, `127.0.0.1` for this machine only.
 - `PARTY_DB_PREPARE` — `auto` (default: the web role prepares the schema),
   `true`, or `false`.
 
-Behind a reverse proxy, point the upstream at `localhost:${WEB_PORT}`, proxy
-`/cable` as well — Turbo's live updates need it — and put the name you serve under
-in `PARTY_HOSTS`.
+Behind a reverse proxy, set `WEB_BIND=127.0.0.1` so only the proxy can reach the
+app, point the upstream at `localhost:${WEB_PORT}`, and proxy `/cable` as well —
+Turbo's live updates need it.
 
 ## 7. Troubleshooting
 
@@ -249,10 +248,8 @@ in `PARTY_HOSTS`.
 | `web` unhealthy, log says `SECRET_KEY_BASE` missing | not set in `.env` |
 | `player` restarts in a loop, log: `Connection refused` from mpv | audio route broken; run the `--audio-device=help` check in §4 |
 | `mpv: could not connect to socket` right after boot | the host's Pulse socket was replaced (relogin); `docker compose up -d player` |
-| `web` stays unhealthy, log repeats `Blocked hosts: localhost:3000`, `jobs`/`player` stuck in `Created` | host authorization refusing the healthcheck. Fixed in `config/application.rb` (loopback allowed, `/up` excluded) — if you see it again, something re-narrowed `config.hosts`. Note `jobs` and `player` wait on `web` being **healthy**, so one 403 keeps the whole stack down. |
-| Blank page, `Blocked host` in the web log | add the name to `PARTY_HOSTS` |
-| Live updates stop, WebSocket 403 | origin not allowed — `PARTY_ALLOWED_ORIGINS` |
+| Nothing answers on `<host>:3008` | `WEB_BIND` names an interface that address does not reach. `jobs` and `player` wait on a healthy `web`, so the whole stack stays down with it. |
 | Tracks queue but never play, stuck "waiting" | the daemon parks on an unready head: check `jobs` logs for yt-dlp/ffmpeg failures |
 | Library search finds nothing | `party:scan` not run, or `MUSIC_DIR` points somewhere empty |
 | No Library tab at all | `MUSIC_DIR` is empty — that is YouTube-only mode (§2.5) |
-| YouTube search and downloads both fail | on this network YouTube is blocked at the router — unrelated to Docker |
+| YouTube search and downloads both fail | the box cannot reach youtube.com (DNS, firewall) — unrelated to Docker |

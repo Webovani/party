@@ -64,12 +64,12 @@ refused at add time — an unplayable local file would otherwise park the player
 it forever. A configured library on an unmounted drive is *not* "off"; that is
 temporary, and the index stays browsable.
 
-**Reaching the app by name.** Private-range IPs (10/8, 172.16/12, 192.168/16) and
-localhost are always allowed. `PARTY_HOSTS` adds hostnames (comma-separated), each
-allowed as a WebSocket origin too, so live updates work behind a proxy without a
-second setting; `PARTY_ALLOWED_ORIGINS` exists for the cases that need one anyway.
-`PARTY_HOSTS=*` turns host checking off entirely. **This app has no authentication
-by design — keep it on the LAN.**
+**Access control.** There is none: no login, no host allowlist, any name or IP that
+reaches the port gets in. That is the point at a party, and it is also why the
+only real control is where you publish it. `WEB_BIND` in `.env` picks the
+interface (blank = all of them, `192.168.1.10` = that LAN address only,
+`127.0.0.1` = this machine only); outside Docker it is `bin/rails server -b`.
+**Keep it on the LAN.**
 
 ## Architecture
 

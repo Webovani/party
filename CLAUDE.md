@@ -285,9 +285,10 @@ bundle exec rspec          # 132 examples
 
 Uses the separate `party_test` DB — safe to run while the live stack is up.
 
-`config/application.rb` scopes the LAN `config.hosts` block to **non-test** envs. Appending to
-`config.hosts` flips host-authorization into allowlist mode and 403s the `www.example.com` host
-request specs use. Don't remove that guard.
+`config/application.rb` clears `config.hosts` and disables the ActionCable origin check in every
+env, so request specs' `www.example.com` host is fine. Never *append* to `config.hosts` instead —
+appending flips host-authorization into allowlist mode and 403s those specs, the container
+healthcheck on `/up`, and whatever name a guest reached the box by.
 
 ## Misc
 
@@ -295,11 +296,11 @@ request specs use. Don't remove that guard.
   and `config/database.yml` default to "no music library, local PostgreSQL over its unix socket
   as the OS user" so a fresh clone runs. `.env` (loaded by `dotenv-rails` in development and
   test, *and* by `docker compose`) is what puts this box back on port **5433** as
-  `dbuser`/`dbpass`, points `PARTY_MUSIC_DIR` at `/home/rhitu/Music`, and sets
-  `PARTY_HOSTS=party,party.rhitu.cz`. Delete a line from `.env` and you get the stranger's
-  defaults — including a suddenly library-less app.
-- `PARTY_HOSTS` also feeds the ActionCable origin list, so a new hostname needs only that one
-  variable; nothing is hard-coded in `config/application.rb` any more.
+  `dbuser`/`dbpass` and points `PARTY_MUSIC_DIR` at `/home/rhitu/Music`. Delete a line from
+  `.env` and you get the stranger's defaults — including a suddenly library-less app.
+- There is no host allowlist any more: any name or IP that reaches the port gets in. Access is
+  controlled by where the app listens — `WEB_BIND` for the container, `bin/rails server -b`
+  outside it.
 - Local library is `/home/rhitu/Music` (~22k tracks). `bin/rails party:scan` to reindex; the
   in-app "Rescan" button was deliberately removed.
 - **Never `pgrep -f`/`pkill -f` a pattern that also appears in your own command line** — it
