@@ -41,7 +41,7 @@ RSpec.describe "Promoting a track that isn't downloaded yet", type: :request do
 
   it "hides the ⤒ button for a track that isn't ready" do
     pending_youtube
-    get root_path
+    get queue_region_path
 
     rows = response.body.scan(%r{<li class="qitem".*?</li>}m)
     row = rows.find { |r| r.include?("Still downloading") }

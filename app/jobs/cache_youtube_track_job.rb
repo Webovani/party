@@ -17,7 +17,7 @@ class CacheYoutubeTrackJob < ApplicationJob
     end
 
     track.update!(cache_status: "pending", last_error: nil)
-    PartyBroadcaster.refresh
+    PartyBroadcaster.queue_changed
 
     path = downloader.download(track.source_uid)
     mark_ready(track, path)
@@ -32,7 +32,7 @@ class CacheYoutubeTrackJob < ApplicationJob
     track.update!(cache_path: path, cache_status: "ready", last_error: nil, cache_attempts: 0)
     # The file only exists now, so this is the first chance to measure it.
     AnalyzeLoudnessJob.perform_later(track.id) unless track.loudness_measured?
-    PartyBroadcaster.refresh
+    PartyBroadcaster.queue_changed
   end
 
   # Record the failure; once a track has failed MAX_ATTEMPTS times, give up on it
@@ -56,6 +56,6 @@ class CacheYoutubeTrackJob < ApplicationJob
       end
     end
 
-    PartyBroadcaster.refresh
+    PartyBroadcaster.queue_changed
   end
 end

@@ -1,15 +1,12 @@
-<%# Invisible element rendered in every frame; on connect it syncs the current
-    browse scope into the persistent search form (hidden fields + "In:" chip) and
-    reconciles the search box with what is actually being shown — which is what
-    keeps the box honest after a back/forward. `listing` marks a browse/history
-    view, which has no query at all. %>
+<%# Invisible element rendered in every frame; on connect it syncs the browse
+    scope into the search form above — hidden fields, placeholder, query.
+    `listing` marks a browse/history view, which has no query at all. %>
 <% shown_query = local_assigns[:listing] ? "" : local_assigns[:query].to_s %>
 <div data-controller="scope"
      data-scope-browse-value="<%= scope&.dig(:browse) %>"
      data-scope-artist-value="<%= scope&.dig(:artist) %>"
      data-scope-album-value="<%= scope&.dig(:album) %>"
      data-scope-path-value="<%= scope&.dig(:path) %>"
-     data-scope-label-value="<%= scope&.dig(:label) %>"
      data-scope-query-value="<%= shown_query %>"
      data-scope-placeholder-value="<%= search_placeholder(scope) %>"
      hidden></div>

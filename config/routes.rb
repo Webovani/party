@@ -12,6 +12,14 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   root "party#index"
 
+  # Queue and player bar are turbo-frames with their own `src`. Each answers with
+  # the frame alone, rendered for the requesting guest — see PartyBroadcaster.
+  controller :party do
+    get "party/queue"       => :queue,       as: :queue_region
+    get "party/now_playing" => :now_playing, as: :now_playing_region
+    get "party/volume"      => :volume,      as: :volume_region
+  end
+
   # Nickname (self-set identity, no password)
   resource :session, only: %i[create destroy]
 

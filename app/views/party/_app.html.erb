@@ -21,11 +21,7 @@
         <%= form_with url: search_path, method: :get, id: "search-form",
               data: { controller: "search", turbo_frame: "search_results",
                       turbo_action: "advance" } do |f| %>
-          <%# Only the input is permanent, and only to protect in-progress typing
-              from a broadcast morph. The scope chip and fields below must NOT be:
-              a permanent element is carried forward and never re-rendered again,
-              which left the chip stuck showing a browse you had already left. %>
-          <div class="search-input-wrap" id="search-input-wrap" data-turbo-permanent>
+          <div class="search-input-wrap" id="search-input-wrap">
             <%= f.search_field :q, placeholder: search_placeholder(scope),
                   autocomplete: "off", value: params[:q],
                   data: { search_target: "input", action: "input->search#submit input->search#toggleClear" } %>
@@ -45,26 +41,23 @@
           </div>
         <% end %>
       </div>
-      <%# turbo-action=advance: browsing writes itself into the URL, so back/forward
-          work and a link can be shared. NOT data-turbo-permanent — that would pin
-          the frame's content across history navigation. It no longer needs to be:
-          a morph refresh re-fetches the current URL, which now carries the browse
-          state and so re-renders this same listing. %>
+      <%# turbo-action=advance: browsing writes itself into the URL, so
+          back/forward and link-sharing work. Only navigation re-renders this
+          frame. %>
       <turbo-frame id="search_results" data-turbo-action="advance">
         <%= render "shared/frame_content" %>
       </turbo-frame>
     </section>
 
+    <%# Queue and player are frames with their own `src`, fetched and reloaded
+        independently of what is being browsed. See PartyController. %>
     <section class="queue">
-      <div id="queue">
-        <%= render "party/queue", queue: @queue %>
-      </div>
+      <turbo-frame id="queue" src="<%= queue_region_path %>"></turbo-frame>
     </section>
   </div>
 
   <footer class="player-bar">
-    <div id="now-playing">
-      <%= render "party/now_playing", player: @player, current_item: @current_item, votes_to_skip: @votes_to_skip %>
-    </div>
+    <turbo-frame id="now-playing" src="<%= now_playing_region_path %>"></turbo-frame>
+    <turbo-frame id="player-volume" src="<%= volume_region_path %>"></turbo-frame>
   </footer>
 </main>

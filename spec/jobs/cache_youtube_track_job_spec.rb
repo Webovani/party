@@ -6,7 +6,7 @@ RSpec.describe CacheYoutubeTrackJob, type: :job do
 
   before do
     allow(PlayerCommands).to receive(:notify).and_return(true)
-    allow(PartyBroadcaster).to receive(:refresh)
+    allow(PartyBroadcaster).to receive(:reload)
     # No file on disk, and the download always fails.
     downloader = instance_double(YoutubeDownloader, cached_file: nil)
     allow(downloader).to receive(:download).and_raise(YoutubeDownloader::Error, "nope")

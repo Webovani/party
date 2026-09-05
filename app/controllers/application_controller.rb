@@ -81,13 +81,13 @@ class ApplicationController < ActionController::Base
     redirect_to(root_path, alert: "Pick a nickname first.") unless signed_in?
   end
 
-  # Data the app shell (queue + now-playing) needs, wherever it is rendered from.
+  # What a full page render needs. No queue: it is a turbo-frame that fetches
+  # itself (PartyController), so browsing costs no queue query. The player stays
+  # because <title> is server-rendered for the first paint.
   def load_app_shell
     User.touch_nick(current_nick) if signed_in?
     @player = PlayerState.instance
     @current_item = @player.current_queue_item
-    @queue = QueueItem.waiting
-    @votes_to_skip = PartyConfig[:votes_to_skip].to_i
   end
 
   # Browse/search endpoints render into the search_results frame. A non-frame GET

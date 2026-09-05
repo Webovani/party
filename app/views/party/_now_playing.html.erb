@@ -1,6 +1,11 @@
 <% track = current_item&.track %>
+<%# page-title: this frame is the only thing that reloads on a track change, so
+    it carries the <title> forward. %>
 <div class="np"
-     data-controller="progress"
+     data-controller="progress page-title"
+     data-page-title-text-value="<%= document_title(player, current_item) %>"
+     data-progress-item-id-value="<%= current_item&.id %>"
+     data-progress-seek-url-value="<%= player_seek_path %>"
      data-progress-position-ms-value="<%= player.position_ms %>"
      data-progress-duration-ms-value="<%= player.duration_ms %>"
      data-progress-playing-value="<%= player.playing? %>">
@@ -51,15 +56,6 @@
           <%= admin? ? "skip now" : "skip votes #{current_item.skip_vote_count}/#{votes_to_skip}" %>
         </span>
       <% end %>
-    </div>
-
-    <div class="volume" data-controller="volume"
-         data-volume-url-value="<%= player_volume_path %>"
-         data-volume-level-value="<%= player.volume %>">
-      <%= player_icon(:volume) %>
-      <button type="button" class="volbtn" data-action="volume#down" aria-label="Quieter">−</button>
-      <span class="vollevel" data-volume-target="display"><%= player.volume %>%</span>
-      <button type="button" class="volbtn" data-action="volume#up" aria-label="Louder">+</button>
     </div>
   </div>
 </div>

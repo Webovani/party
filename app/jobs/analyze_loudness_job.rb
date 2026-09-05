@@ -16,7 +16,7 @@ class AnalyzeLoudnessJob < ApplicationJob
 
     track.update!(loudness_lufs: result[:lufs], loudness_lufs_hp: result[:lufs_hp],
                   loudness_attempts: 0)
-    PartyBroadcaster.refresh # surface the badge
+    PartyBroadcaster.queue_changed # surface the badge
     # The player parks on an unmeasured head, so tell it the wait is over — it
     # would otherwise sit there until the next queue change or track boundary.
     PlayerCommands.queue_changed
@@ -42,6 +42,6 @@ class AnalyzeLoudnessJob < ApplicationJob
       "[AnalyzeLoudnessJob] dropping '#{track.title}' from queue: unmeasurable after #{attempts} attempts"
     )
     PlayerCommands.queue_changed
-    PartyBroadcaster.refresh
+    PartyBroadcaster.queue_changed
   end
 end

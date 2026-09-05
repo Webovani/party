@@ -2,13 +2,15 @@ import { Controller } from "@hotwired/stimulus"
 
 // Live updates arrive over ActionCable and are fire-and-forget: while the tab is
 // backgrounded the socket drops and any broadcasts are missed. So when the tab
-// returns to the foreground (or the network comes back) we force a page refresh
-// to pull current state immediately, and show a status badge — but only when the
-// gap was long enough to matter, so quick tab-switches and blips stay quiet.
+// returns to the foreground (or the network comes back) we reload the live frames
+// and show a status badge — but only when the gap was long enough to matter, so
+// quick tab-switches stay quiet. Only those frames can be stale; what is being
+// browsed changes by navigation alone.
 const HEARTBEAT_MS = 10000    // reachability check cadence while visible
 const STALE_MS = 15000        // show "Syncing…" only if last success older than this
 const RETRY_MS = 3000         // recheck cadence while failing
 const FAILS_FOR_OFFLINE = 2   // consecutive failures before showing "Offline"
+const LIVE_FRAMES = ["queue", "now-playing", "player-volume"]
 
 export default class extends Controller {
   static targets = ["badge"]
@@ -49,7 +51,7 @@ export default class extends Controller {
     this.lastResync = now
 
     if (now - this.lastSuccess > STALE_MS) this.setState("syncing")
-    window.Turbo?.visit(window.location.href, { action: "replace" })
+    for (const id of LIVE_FRAMES) document.getElementById(id)?.reload()
     this.check()
   }
 

@@ -90,7 +90,7 @@ class PlayerDaemon
       item.update!(state: "promoted")
       state.update!(current_queue_item_id: nil, position_ms: 0, duration_ms: 0)
     end
-    PartyBroadcaster.refresh
+    PartyBroadcaster.track_changed
   rescue => e
     Rails.logger.error("[player] reconcile_on_boot failed: #{e.class}: #{e.message}")
   end
@@ -153,7 +153,7 @@ class PlayerDaemon
     if @loaded_item_id && state.current_queue_item
       @mpv.set_property("pause", false)
       state.update!(status: "playing")
-      PartyBroadcaster.refresh
+      PartyBroadcaster.player_changed
     else
       advance
     end
@@ -166,7 +166,7 @@ class PlayerDaemon
   def do_pause
     @mpv.set_property("pause", true)
     PlayerState.instance.update!(status: "paused")
-    PartyBroadcaster.refresh
+    PartyBroadcaster.player_changed
   end
 
   # Halt and reset to the start, but keep the current track cued. Stop must not
@@ -176,14 +176,14 @@ class PlayerDaemon
     safe_mpv { @mpv.set_property("pause", true) }
     safe_mpv { @mpv.command("seek", 0, "absolute") }
     PlayerState.instance.update!(status: "stopped", position_ms: 0)
-    PartyBroadcaster.refresh
+    PartyBroadcaster.player_changed
   end
 
   def do_set_volume(value)
     volume = value.to_i.clamp(0, 100)
     PlayerState.instance.update!(volume: volume)
     apply_volume
-    PartyBroadcaster.refresh
+    PartyBroadcaster.volume_changed
   end
 
   # mpv's "volume" is the user's fader and nothing else.
@@ -210,7 +210,7 @@ class PlayerDaemon
   def do_seek(seconds)
     @mpv.command("seek", seconds.to_f, "absolute")
     PlayerState.instance.update!(position_ms: (seconds.to_f * 1000).to_i)
-    PartyBroadcaster.refresh
+    PartyBroadcaster.player_changed
   end
 
   def do_queue_changed
@@ -269,7 +269,7 @@ class PlayerDaemon
     # Stay "armed" (playing) so later additions auto-play, unless explicitly stopped.
     status = state.stopped? ? "stopped" : "playing"
     state.update!(status: status, current_queue_item_id: nil, position_ms: 0, duration_ms: 0)
-    PartyBroadcaster.refresh
+    PartyBroadcaster.track_changed
   end
 
   # Park on a head that isn't ready to start — still downloading, or not yet
@@ -280,7 +280,7 @@ class PlayerDaemon
     ensure_measured(track)
     @loaded_item_id = nil
     state.update!(status: "playing", current_queue_item_id: nil, position_ms: 0, duration_ms: 0)
-    PartyBroadcaster.refresh
+    PartyBroadcaster.track_changed
   end
 
   # Filler yields the moment anyone queues a real song. Its position is saved so
@@ -317,7 +317,7 @@ class PlayerDaemon
     @mpv.set_property("pause", false)
     state.update!(position_ms: resume_at)
     PrecacheQueueJob.perform_later
-    PartyBroadcaster.refresh
+    PartyBroadcaster.track_changed
   rescue MpvClient::Error => e
     load_failed(state, item, e)
   end
@@ -330,7 +330,7 @@ class PlayerDaemon
     item.update!(state: "promoted", resume_position_ms: 0)
     @loaded_item_id = nil
     state.update!(current_queue_item_id: nil, position_ms: 0, duration_ms: 0)
-    PartyBroadcaster.refresh
+    PartyBroadcaster.track_changed
   end
 
   def ensure_caching(track)

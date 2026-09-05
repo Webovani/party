@@ -1,16 +1,18 @@
 import { Controller } from "@hotwired/stimulus"
+import { post } from "post"
 
-// Animates the now-playing progress bar client-side between server refreshes, so
-// we never broadcast per-second position ticks. Re-syncs when the broadcast morph
-// updates the position/duration/playing values. Click-to-seek posts to the player.
+// Animates the now-playing progress bar client-side between server updates, so we
+// never broadcast per-second position ticks. Click-to-seek posts to the player.
 export default class extends Controller {
   static targets = ["bar", "fill", "elapsed"]
-  static values = { positionMs: Number, durationMs: Number, playing: Boolean }
+  static values = { itemId: String, positionMs: Number, durationMs: Number, playing: Boolean, seekUrl: String }
 
   connect() { this.resync() }
   disconnect() { this.stop() }
 
-  positionMsValueChanged() { this.resync() }
+  // Resync on the item, not positionMs: the daemon persists position once a
+  // second, so that would drag the bar back on every unrelated frame reload.
+  itemIdValueChanged() { this.resync() }
   playingValueChanged() { this.resync() }
 
   resync() {
@@ -49,13 +51,7 @@ export default class extends Controller {
     const ratio = Math.min(Math.max((event.clientX - rect.left) / rect.width, 0), 1)
     const seconds = (this.durationMsValue / 1000) * ratio
 
-    const body = new FormData()
-    body.append("seconds", seconds.toFixed(1))
-    fetch("/player/seek", {
-      method: "POST",
-      body,
-      headers: { "X-CSRF-Token": csrfToken() }
-    })
+    post(this.seekUrlValue, { seconds: seconds.toFixed(1) })
   }
 }
 
@@ -64,8 +60,4 @@ function format(ms) {
   const m = Math.floor(total / 60)
   const s = total % 60
   return `${m}:${String(s).padStart(2, "0")}`
-}
-
-function csrfToken() {
-  return document.querySelector('meta[name="csrf-token"]')?.content
 }

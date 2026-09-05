@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe AnalyzeLoudnessJob, type: :job do
-  before { allow(PartyBroadcaster).to receive(:refresh) }
+  before { allow(PartyBroadcaster).to receive(:reload) }
 
   it "measures and stores loudness for a playable track" do
     track = create(:track, :local, loudness_lufs: nil)

@@ -41,6 +41,6 @@ RSpec.describe "History scoped search", type: :request do
   it "History frame declares the history scope for the search form" do
     get history_path, headers: { "Turbo-Frame" => "search_results" }
     expect(response.body).to include('data-scope-browse-value="history"')
-    expect(response.body).to include('data-scope-label-value="History"')
+    expect(response.body).to include('data-scope-placeholder-value="Search played history…"')
   end
 end

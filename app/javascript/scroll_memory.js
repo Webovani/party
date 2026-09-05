@@ -35,19 +35,21 @@ function scrollToY(y) {
   })
 }
 
-function onRender(event) {
-  if (restoring) {
-    restoring = false
-    const previous = positions.get(window.location.href)
-    if (previous !== undefined) scrollToY(previous)
-    return
-  }
+// Restores only on a back/forward; any other full render is a fresh visit, which
+// the browser already puts at the top.
+function onLoad() {
+  if (!restoring) return
+  restoring = false
 
-  // Only a frame navigation scrolls to the top. turbo:load ALSO fires for a
-  // broadcast morph refresh — which happens every time anyone adds a song, and
-  // arrives unprompted — so treating it as navigation yanked everyone to the top
-  // mid-scroll. It is only listened to for the restoration case above.
-  if (event.type !== "turbo:frame-render" || event.target.id !== "search_results") return
+  const previous = positions.get(window.location.href)
+  if (previous !== undefined) scrollToY(previous)
+}
+
+// Only the browse frame scrolls to the top. The queue and player frames reload
+// unprompted whenever anyone touches the party — scrolling there would yank
+// everyone to the top mid-scroll.
+function onFrameRender(event) {
+  if (event.target.id !== "search_results") return
 
   // Search-as-you-type re-renders the frame on every keystroke; jumping would
   // fight the user. A browse link blurs the input first, so navigation scrolls.
@@ -59,7 +61,5 @@ function onRender(event) {
 
 window.addEventListener("scroll", remember, { passive: true })
 window.addEventListener("popstate", () => { restoring = true })
-// Frame navigation fires the first; a restoration visit is a full page render
-// and fires the second. Exactly one fires per navigation, so they can't fight.
-document.addEventListener("turbo:frame-render", onRender)
-document.addEventListener("turbo:load", onRender)
+document.addEventListener("turbo:frame-render", onFrameRender)
+document.addEventListener("turbo:load", onLoad)

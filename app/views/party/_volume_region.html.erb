@@ -1,0 +1,13 @@
+<%# Volume is its own frame so a tap reloads a few hundred bytes instead of the
+    player bar: the progress bar is not torn down mid-song, and a track change
+    cannot clobber the number someone is stepping through. %>
+<turbo-frame id="player-volume">
+  <div class="volume" data-controller="volume"
+       data-volume-url-value="<%= player_volume_path %>"
+       data-volume-level-value="<%= player.volume %>">
+    <%= player_icon(:volume) %>
+    <button type="button" class="volbtn" data-action="volume#down" aria-label="Quieter">−</button>
+    <span class="vollevel" data-volume-target="display"><%= player.volume %>%</span>
+    <button type="button" class="volbtn" data-action="volume#up" aria-label="Louder">+</button>
+  </div>
+</turbo-frame>

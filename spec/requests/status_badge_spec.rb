@@ -10,7 +10,7 @@ RSpec.describe "Queue status badge", type: :request do
 
   def badge_for(track)
     create(:queue_item, queued_by: "dj", track: track)
-    get root_path
+    get queue_region_path
     response.body[%r{<span class="badge (\w+)"[^>]*>\s*([^<]+?)\s*</span>}m, 2]
   end
 

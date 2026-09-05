@@ -7,9 +7,9 @@
     <meta name="application-name" content="Party">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0f0f14">
-    <%# Broadcast page refreshes morph the DOM in place (preserves scroll & permanents) %>
-    <meta name="turbo-refresh-method" content="morph">
-    <meta name="turbo-refresh-scroll" content="preserve">
+    <%# No turbo-refresh-method/scroll: nothing broadcasts a whole-page refresh.
+        Live updates reload the queue and player frames instead — see
+        PartyBroadcaster. %>
     <%# No snapshot cache. Browsing advances the URL from inside a turbo-frame, and
         Turbo swaps the frame content BEFORE running the visit that updates history —
         so the snapshot it caches under the URL you are leaving already contains the
@@ -36,11 +36,13 @@
   </head>
 
   <body>
-    <%# Every client subscribes to the shared party stream for live morphing %>
+    <%# Shared party stream: broadcasts on it tell the queue and player frames to
+        reload themselves. %>
     <%= turbo_stream_from "party" %>
 
-    <%# Toasts survive morphs (turbo-permanent) so per-actor messages aren't wiped %>
-    <div id="toasts" class="toasts" data-turbo-permanent>
+    <%# Per-actor messages. Nothing re-renders this container unprompted, so a
+        toast never replays its animation. %>
+    <div id="toasts" class="toasts">
       <% flash.each do |type, message| %>
         <%= render "shared/toast", message: message, type: (type == "alert" ? "alert" : "notice") %>
       <% end %>

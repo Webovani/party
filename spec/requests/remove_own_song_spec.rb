@@ -28,12 +28,13 @@ RSpec.describe "Removing your own song", type: :request do
     expect(response.body).to include("already playing")
   end
 
+  # Per-viewer markup — why the queue frame is fetched, not broadcast.
   it "shows the remove button only on your own rows" do
     create(:queue_item, queued_by: "dj", track: create(:track, :local, title: "Mine"))
     create(:queue_item, queued_by: "alice", track: create(:track, :local, title: "Theirs"))
     sign_in "dj"
 
-    get root_path
+    get queue_region_path
     rows = response.body.scan(%r{<li class="qitem".*?</li>}m)
     mine  = rows.find { |r| r.include?("Mine") }
     other = rows.find { |r| r.include?("Theirs") }

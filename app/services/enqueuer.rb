@@ -36,7 +36,7 @@ class Enqueuer
     AnalyzeLoudnessJob.perform_later(track.id) unless track.loudness_measured?
     PrecacheQueueJob.perform_later
     PlayerCommands.queue_changed
-    PartyBroadcaster.refresh # update all clients even if the player is offline
+    PartyBroadcaster.queue_changed # update all clients even if the player is offline
     item
   end
 
@@ -68,7 +68,7 @@ class Enqueuer
     if added.positive?
       PrecacheQueueJob.perform_later
       PlayerCommands.queue_changed
-      PartyBroadcaster.refresh
+      PartyBroadcaster.queue_changed
     end
 
     BulkResult.new(added: added, skipped: total - added)

@@ -117,11 +117,20 @@ RSpec.describe "Browse state is server-rendered, not synced", type: :request do
     expect(active_tabs(response.body)).to eq(["History"])
   end
 
-  it "only makes the search input permanent" do
+  # Nothing re-renders this page unprompted any more, so nothing needs pinning.
+  it "pins nothing against a broadcast" do
     get "/library?browse=artists"
-    expect(response.body).to include('id="search-input-wrap" data-turbo-permanent')
-    expect(response.body).not_to match(/id="search-controls"[^>]*data-turbo-permanent/)
+    expect(response.body).not_to include("data-turbo-permanent")
     expect(response.body).not_to include("search-scope-chip")
+  end
+
+  it "leaves the queue and the player to their own frames" do
+    create(:queue_item, queued_by: "dj", track: create(:track, :local, title: "Dancing Queen"))
+    get "/library?browse=artists"
+
+    expect(response.body).to include('<turbo-frame id="queue"')
+    expect(response.body).not_to include("Dancing Queen")
+    expect(response.body).not_to include('class="qitem"')
   end
 end
 

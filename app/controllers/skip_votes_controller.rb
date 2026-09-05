@@ -10,14 +10,9 @@ class SkipVotesController < ApplicationController
     # The admin nick skips on its own vote — the way out of a track that is
     # stuck or silent when there is nobody else around to vote with.
     PlayerCommands.skip if admin? || item.skip_vote_count >= PartyConfig[:votes_to_skip].to_i
-    PartyBroadcaster.refresh # other clients
 
-    # Update the voter's own now-playing (their own morph broadcast is suppressed).
-    player = PlayerState.instance
-    render turbo_stream: turbo_stream.update(
-      "now-playing", partial: "party/now_playing",
-      locals: { player: player, current_item: player.current_queue_item,
-                votes_to_skip: PartyConfig[:votes_to_skip].to_i }
-    )
+    # Reaches the voter too — no separate per-actor render.
+    PartyBroadcaster.player_changed
+    head :no_content
   end
 end

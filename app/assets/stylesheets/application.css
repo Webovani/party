@@ -486,15 +486,28 @@ turbo-frame#search_results[busy]::after {
 .badge.lufs .bass { opacity: 0.8; margin-left: 3px; }
 
 /* ---------- Now-playing bar ---------- */
+/* now-playing and player-volume are separate frames but one bar, so the grid is
+   here and the frames are display:contents. min-height reserves the space until
+   they load. */
 .player-bar {
   position: fixed;
   bottom: 0; left: 0; right: 0;
   z-index: 10;
+  min-height: var(--bar-h);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: center;
+  column-gap: 10px;
   background: rgba(20, 20, 27, 0.96);
   backdrop-filter: blur(12px);
   border-top: 1px solid var(--line);
   padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
 }
+turbo-frame { display: block; }
+.player-bar > #now-playing, .np { display: contents; }
+.np-top, .np-progress, .np-times { grid-column: 1 / -1; }
+.np-controls { grid-column: 1; }
+#player-volume { grid-column: 2; }
 .np-top { display: flex; align-items: center; gap: 12px; }
 .np-art { width: 52px; height: 52px; }
 .np-meta { min-width: 0; flex: 1; }
@@ -566,7 +579,6 @@ turbo-frame#search_results[busy]::after {
   min-width: 24px;
 }
 .volume {
-  margin-left: auto;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -636,5 +648,6 @@ turbo-frame#search_results[busy]::after {
 
 @media (min-width: 640px) {
   .scroll { max-width: 720px; margin: 0 auto; width: 100%; }
-  .player-bar > .np { max-width: 720px; margin: 0 auto; }
+  /* .np is display:contents, so the bar centres its own grid instead. */
+  .player-bar { padding-inline: max(16px, calc((100% - 720px) / 2)); }
 }

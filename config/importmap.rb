@@ -2,7 +2,8 @@
 
 pin "application"
 pin "scroll_memory"
-pin "search_sync"
+pin "stream_actions"
+pin "post"
 pin "@hotwired/turbo-rails", to: "turbo.min.js"
 pin "@hotwired/stimulus", to: "stimulus.min.js"
 pin "@hotwired/stimulus-loading", to: "stimulus-loading.js"

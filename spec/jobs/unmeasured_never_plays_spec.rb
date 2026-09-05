@@ -35,7 +35,7 @@ RSpec.describe "Never play an unmeasured track" do
 
   describe AnalyzeLoudnessJob do
     before do
-      allow(PartyBroadcaster).to receive(:refresh)
+      allow(PartyBroadcaster).to receive(:reload)
       allow(PlayerCommands).to receive(:notify).and_return(true)
     end
 

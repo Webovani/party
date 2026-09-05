@@ -41,12 +41,12 @@ module ApplicationHelper
   # version only lands on a full page load.
   def search_placeholder(scope) = "Search #{scope_search_target(scope)}…"
 
-  # Browser tab title. Song first: a tab strip truncates the end, and the song is
-  # the part worth reading at a glance. Updates on its own because a track change
-  # broadcasts a page refresh, which re-renders the whole document.
+  # Browser tab title. Song first: a tab strip truncates the end.
   #
-  # Only set from a full page render — a turbo-frame response's <head> is discarded
-  # by Turbo, so the ivars being nil there costs nothing.
+  # Rendered twice: into <head> for the first paint, and into the now-playing
+  # frame, which is the only thing that reloads on a track change
+  # (page_title_controller). A frame response's <head> is discarded by Turbo, so
+  # nil ivars on that path cost nothing.
   def document_title(player, item)
     track = item&.track
     return "Party" if track.nil? || player.nil? || player.stopped?

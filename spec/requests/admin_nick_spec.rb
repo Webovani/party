@@ -21,19 +21,21 @@ RSpec.describe "The admin nick", type: :request do
       post player_seek_path, params: { seconds: "42" }
     end
 
-    it "is ignored for anyone else" do
+    it "is refused for anyone else" do
       sign_in "guest"
       expect(PlayerCommands).not_to receive(:seek)
 
       post player_seek_path, params: { seconds: "42" }
+      expect(response).to have_http_status(:forbidden)
     end
 
-    it "is ignored when no admin nick is configured" do
+    it "is refused when no admin nick is configured" do
       allow(PartyConfig).to receive(:admin_nick).and_return(nil)
       sign_in "dj"
       expect(PlayerCommands).not_to receive(:seek)
 
       post player_seek_path, params: { seconds: "42" }
+      expect(response).to have_http_status(:forbidden)
     end
   end
 

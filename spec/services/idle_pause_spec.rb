@@ -13,7 +13,7 @@ RSpec.describe PlayerDaemon, "paused with nothing loaded" do
   end
 
   before do
-    allow(PartyBroadcaster).to receive(:refresh)
+    allow(PartyBroadcaster).to receive(:reload)
     allow(PlayerCommands).to receive(:notify).and_return(true)
     allow(mpv).to receive(:loadfile)
     allow(mpv).to receive(:set_property)

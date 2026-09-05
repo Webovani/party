@@ -1,0 +1,6 @@
+<%# No `src` on the response frame: Turbo rejects a frame answer that points at
+    the URL it was just fetched from ("references itself"). The shell's frame
+    keeps its own src — a render only swaps children — so reload() still works. %>
+<turbo-frame id="queue">
+  <%= render "party/queue", queue: queue %>
+</turbo-frame>
