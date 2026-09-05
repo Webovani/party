@@ -14,11 +14,6 @@
     <% end %>
   </nav>
 
-  <% if @add %>
-    <%= button_to "＋ Add all these to the queue", @add[:url], params: @add[:params],
-          class: "add-all", form: { class: "inline" } %>
-  <% end %>
-
   <% if @pages&.any? %>
     <nav class="alpha-pages">
       <% @pages.each do |page| %>

@@ -63,13 +63,6 @@ RSpec.describe "Without a local library", type: :request do
     }.to change(QueueItem, :count).by(1)
   end
 
-  it "refuses a bulk album add" do
-    expect {
-      post add_album_queue_items_path, params: { artist: "ABBA", album: "Gold" }
-    }.not_to change(QueueItem, :count)
-    expect(response.body).to include("YouTube only")
-  end
-
   it "hides played local tracks from history" do
     create(:queue_item, track: leftover, state: "played", queued_by: "dj")
     get history_path, headers: { "Turbo-Frame" => "search_results" }

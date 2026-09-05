@@ -31,10 +31,6 @@ Rails.application.routes.draw do
     member do
       post :move_to_front
     end
-    collection do
-      post :add_album
-      post :add_folder
-    end
   end
 
   # Skip-voting

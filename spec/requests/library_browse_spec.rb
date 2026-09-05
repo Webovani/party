@@ -50,25 +50,16 @@ RSpec.describe "Library browsing", type: :request do
     end
   end
 
-  describe "bulk add" do
-    it "adds a whole album" do
-      expect {
-        post add_album_queue_items_path, params: { artist: "ABBA", album: "Gold" }
-      }.to change(QueueItem, :count).by(2)
+  describe "no bulk add" do
+    it "offers no add button on a browse row" do
+      get library_path(browse: "artists"), headers: { "Turbo-Frame" => "search_results" }
+      expect(response.body).not_to include("addbtn")
     end
 
-    it "adds a whole folder recursively" do
-      expect {
-        post add_folder_queue_items_path, params: { path: "ABBA" }
-      }.to change(QueueItem, :count).by(3) # Gold(2) + Waterloo(1)
-    end
-
-    it "respects the per-user limit and reports skips" do
-      allow(Rails.application.config).to receive(:party)
-        .and_return(Rails.application.config.party.merge(max_queue_per_user: 1))
-      post add_folder_queue_items_path, params: { path: "ABBA" }
-      expect(QueueItem.count).to eq(1)
-      expect(response.body).to include("skipped")
+    it "offers no add-all button on an album's track list" do
+      get library_path(browse: "artists", artist: "ABBA", album: "Gold"),
+          headers: { "Turbo-Frame" => "search_results" }
+      expect(response.body).not_to include("Add all these")
     end
   end
 

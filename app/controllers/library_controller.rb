@@ -49,7 +49,6 @@ class LibraryController < ApplicationController
     lib = LocalLibrary.new
     if params.key?(:album)
       @tracks = lib.album_tracks(params[:artist], params[:album])
-      @add = { url: add_album_queue_items_path, params: { artist: params[:artist], album: params[:album] } }
       @breadcrumb = [crumb("Albums", browse: "albums"),
                      crumb(params[:album].presence || "Unknown album", nil)]
     else
@@ -62,7 +61,6 @@ class LibraryController < ApplicationController
     lib = LocalLibrary.new
     if params.key?(:album)
       @tracks = lib.album_tracks(params[:artist], params[:album])
-      @add = { url: add_album_queue_items_path, params: { artist: params[:artist], album: params[:album] } }
       @breadcrumb = [crumb("Artists", browse: "artists"),
                      crumb(params[:artist], browse: "artists", artist: params[:artist]),
                      crumb(params[:album].presence || "Unknown album", nil)]
@@ -79,7 +77,6 @@ class LibraryController < ApplicationController
     lib = LocalLibrary.new
     rel = lib.normalize_rel(params[:path])
     @entries, @tracks = lib.folder(rel)
-    @add = { url: add_folder_queue_items_path, params: { path: rel } } if rel.present?
     @breadcrumb = folder_breadcrumb(rel)
   end
 

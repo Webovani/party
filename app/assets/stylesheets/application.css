@@ -262,17 +262,6 @@ turbo-frame#search_results[busy]::after {
 .breadcrumb a { color: var(--accent); text-decoration: none; }
 .breadcrumb .here { color: var(--text); font-weight: 600; }
 .breadcrumb .sep { color: var(--muted); }
-.add-all {
-  width: 100%;
-  padding: 12px;
-  margin-bottom: 12px;
-  border: 1px solid var(--accent);
-  border-radius: 12px;
-  background: rgba(124, 92, 255, 0.12);
-  color: var(--text);
-  font-weight: 600;
-}
-.add-all:hover { background: rgba(124, 92, 255, 0.22); }
 .browse-list { list-style: none; margin: 0 0 4px; padding: 0; }
 .browse-row {
   display: flex;
@@ -305,7 +294,6 @@ turbo-frame#search_results[busy]::after {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-.browse-row .addbtn { flex: none; margin-right: 4px; }
 .source-head {
   display: flex;
   align-items: center;

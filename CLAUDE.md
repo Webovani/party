@@ -116,9 +116,9 @@ Promotion is a *state*, not a negative position.
 - Adding **only inserts**; existing relative order is preserved.
 
 **Re-deal timing:** `after_create` **and `after_destroy`** set a thread-local flag; `before_commit`
-runs `reorder!` once and clears it. So a bulk add (album/folder, wrapped in a transaction by
-`Enqueuer#enqueue_all`) re-deals **once**, not per row (measured: 143 UPDATEs/306 ms → 28/45 ms),
-and a `destroy_all` likewise. Don't move this back to a per-row `after_create`.
+runs `reorder!` once and clears it. So any transaction touching several rows — a `destroy_all`,
+a seed — re-deals **once**, not per row (measured on the album add this replaced: 143 UPDATEs/306 ms
+→ 28/45 ms). Don't move this back to a per-row `after_create`.
 `before_commit` does fire for destroyed records — that's load-bearing here, and spec'd.
 
 **Removals re-deal** because they change a nick's share. Two paths destroy queue items:

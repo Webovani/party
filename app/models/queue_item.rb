@@ -14,12 +14,12 @@ class QueueItem < ApplicationRecord
   before_validation :assign_position, on: :create
   before_validation :flag_filler, on: :create
 
-  # Re-deal the queue once per transaction rather than once per row, so a bulk add
-  # (an album/folder) pays for a single pass instead of one per track.
+  # Re-deal the queue once per transaction rather than once per row, so a
+  # multi-row write pays for a single pass instead of one per track.
   after_create   :request_reorder
   # Removals change a nick's share of the queue, so re-deal: covers a guest
   # pulling their own song and an undownloadable YouTube track being dropped
-  # (CacheYoutubeTrackJob). destroy_all coalesces into one re-deal like a bulk add.
+  # (CacheYoutubeTrackJob). destroy_all coalesces into one re-deal the same way.
   after_destroy  :request_reorder
   before_commit  :reorder_if_requested
   after_rollback :forget_reorder_request

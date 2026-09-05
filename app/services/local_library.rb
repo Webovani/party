@@ -4,9 +4,9 @@
 class LocalLibrary
   ENTRY_LIMIT = 50
 
-  # A browse row: an artist, album, or folder the user can drill into or bulk-add.
+  # A browse row: an artist, album, or folder the user can drill into.
   # `sub` is a secondary line (an album's artist, a matched folder's parent).
-  Entry = Struct.new(:kind, :label, :sub, :count, :nav, :add, keyword_init: true)
+  Entry = Struct.new(:kind, :label, :sub, :count, :nav, keyword_init: true)
 
   # Raised rather than returning something usable: with a blank music_dir,
   # File.expand_path("") is the working directory, which would quietly make the
@@ -29,7 +29,7 @@ class LocalLibrary
          .group(:artist).order(Arel.sql("lower(artist)")).count
          .map do |artist, n|
       Entry.new(kind: :artist, label: artist, count: n,
-                nav: { browse: "artists", artist: artist }, add: nil)
+                nav: { browse: "artists", artist: artist })
     end
   end
 
@@ -39,8 +39,7 @@ class LocalLibrary
     counts.each { |album, n| merged[album.presence] += n } # fold nil and "" together
     merged.sort_by { |album, _| album.to_s.downcase }.map do |album, n|
       Entry.new(kind: :album, label: album || "Unknown album", count: n,
-                nav: { browse: "artists", artist: artist, album: album.to_s },
-                add: { artist: artist, album: album.to_s })
+                nav: { browse: "artists", artist: artist, album: album.to_s })
     end
   end
 
@@ -73,7 +72,7 @@ class LocalLibrary
          .first(ENTRY_LIMIT)
          .map do |artist, n|
       Entry.new(kind: :artist, label: artist, count: n,
-                nav: { browse: "artists", artist: artist }, add: nil)
+                nav: { browse: "artists", artist: artist })
     end
   end
 
@@ -113,7 +112,7 @@ class LocalLibrary
       child = rel.empty? ? path : File.join(rel, path)
       parent = File.dirname(path)
       Entry.new(kind: :folder, label: File.basename(path), sub: (parent unless parent == "."),
-                count: n, nav: { browse: "folders", path: child }, add: { path: child })
+                count: n, nav: { browse: "folders", path: child })
     end
   end
 
@@ -144,7 +143,7 @@ class LocalLibrary
                       .map do |seg, n|
       child = rel.empty? ? seg : File.join(rel, seg)
       Entry.new(kind: :folder, label: seg, count: n,
-                nav: { browse: "folders", path: child }, add: { path: child })
+                nav: { browse: "folders", path: child })
     end
 
     tracks = Track.local
@@ -154,7 +153,7 @@ class LocalLibrary
     [subfolders, tracks]
   end
 
-  # All tracks anywhere under `rel` (recursive) — for bulk-adding a folder.
+  # All tracks anywhere under `rel` (recursive) — the base scope for a folder search.
   def folder_tracks(rel)
     rel = normalize_rel(rel)
     prefix = rel.empty? ? "#{music_dir}/" : "#{File.join(music_dir, rel)}/"
@@ -179,8 +178,7 @@ class LocalLibrary
     counts = relation.group(:artist, :album).order(Arel.sql("lower(album)")).count
     entries = counts.map do |(artist, album), n|
       Entry.new(kind: :album, label: album, sub: artist.presence, count: n,
-                nav: { browse: "albums", artist: artist.to_s, album: album },
-                add: { artist: artist.to_s, album: album })
+                nav: { browse: "albums", artist: artist.to_s, album: album })
     end
     limit ? entries.first(limit) : entries
   end
