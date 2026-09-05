@@ -1,6 +1,10 @@
 <main class="app" data-controller="connection">
   <header class="topbar">
-    <div class="brand">🎉 Party</div>
+    <%# Targets the frame, like the ⌂ tab: the brand sits outside search_results,
+        but a full-page visit here would re-render the whole shell for what is
+        the same "search everywhere" navigation. %>
+    <%= link_to root_path, class: "brand", title: "Search everywhere",
+          data: { turbo_frame: "search_results" } do %>🎉 Party<% end %>
     <span class="conn" data-connection-target="badge" hidden></span>
     <div class="me">
       <span class="nick"><%= current_nick %></span>

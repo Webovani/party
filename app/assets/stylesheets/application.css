@@ -87,7 +87,7 @@ h1, h2, h3 { margin: 0; }
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
 }
-.brand { font-weight: 700; }
+.brand { font-weight: 700; color: var(--text); text-decoration: none; }
 .conn[hidden] { display: none; }
 .conn {
   font-size: 11px;
