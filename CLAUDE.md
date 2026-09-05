@@ -230,9 +230,16 @@ check whether something is broadcasting too broadly instead.
   in two different frames — the volume has to sit at the right of the controls row, not under it.
 - Player POSTs answer `204`; the visible result arrives as the daemon's broadcast. A `button_to`
   inside a frame is fine with that.
-- `volume_controller` **flushes** its debounced POST on `disconnect()`. The frame reloads on every
-  volume change including somebody else's, which tears the controller down — clearing the timer
-  there would swallow a tap still in its debounce.
+- **`volume_controller` debounces the echo, not the post.** Every tap posts immediately; the
+  reload of `#player-volume` is held off until 600 ms after the last tap (`holdFrame`). Debouncing
+  the post moved the volume late, and since the frame reloads on the echo of your own post, each
+  echo tore the controller down and flushed the pending post early — a double-tap read 14, 12, 14.
+  The level asked for lives at **module scope** because the trailing reload rebuilds the
+  controller; until it echoes back, a differing incoming value is a stale echo and is ignored (at
+  most 3 s, in case the post was lost).
+- `frame_reloads.js` sits between `reload_frame` and `frame.reload()`: it coalesces a burst of
+  signals for one frame into a reload now plus one at the end, and lets a control hold its own
+  frame while it is being worked. Deferred, never dropped.
 - `progress_controller` resyncs on the **item id**, not on `positionMs`: the daemon persists
   position once a second, so resyncing on it dragged the bar back every time the frame reloaded.
 - The `<title>` is rendered twice from `document_title` — into `<head>` for the first paint, and
