@@ -11,8 +11,11 @@ shared queue. Audio plays out of this machine's speakers via mpv.
 ## Running it — systemd, not `bin/dev`
 
 The README's "Run" section is **stale**: it says `bin/dev` on port 3000. The app now runs as
-three **systemd user units** (`party-web`, `party-jobs`, `party-player`) on **port 3007**,
-behind nginx at `party.rhitu.cz` (LAN-only). `bin/dev`/`Procfile.dev` still exist but are legacy.
+three **systemd user units** (`party-web`, `party-jobs`, `party-player`) behind nginx at
+`party.rhitu.cz` (LAN-only). The web port is **`WEB_PORT` in `.env`** (currently 3008) — the unit
+runs `bin/web`, which reads `WEB_PORT`/`WEB_BIND` from there, so it is one setting for both
+deployments rather than a hardcoded `-p` that silently outvoted the file.
+`bin/dev`/`Procfile.dev` still exist but are legacy.
 
 ```bash
 bin/party status
@@ -23,9 +26,10 @@ bin/party logs player           # journalctl -f
 ```
 
 There is also a **container** deployment (`docker-compose.yml`, guide in `docs/DOCKER.md`):
-same three roles from one image, its own PostgreSQL, port 3008, `RAILS_ENV=production` (so no
-code reloading — rebuild). It is an alternative to the systemd stack, not a replacement: both
-would drive the same speakers, so stop one before starting the other. Audio reaches the player
+same three roles from one image, its own PostgreSQL, the same `WEB_PORT`, `RAILS_ENV=production` (so no
+code reloading — rebuild). It is an alternative to the systemd stack, not a replacement: they now
+share `WEB_PORT` as well as the speakers, so the second one to start fails to bind. Stop one
+before starting the other. Audio reaches the player
 container through the host's PulseAudio socket, which only works if the image was built with
 `PUID` = the socket owner's uid.
 
@@ -184,42 +188,58 @@ the library's ReplayGain values disagree with the audio, and YouTube downloads h
   (a fresh process) proves nothing about the running web service — it will 500 on every render
   until restarted. Loudness lookups use `PartyConfig.fetch(key, DEFAULT)` for exactly this reason.
 
-## Hotwire gotchas
+## The update path — three self-reloading frames
 
-- **Turbo ignores a morph broadcast caused by the actor's own request.** So controllers return a
-  targeted `turbo_stream.update` for the actor *and* broadcast for everyone else. If "my own
-  change doesn't show up", this is why.
-- **A morph broadcast re-fetches whatever URL the browser is currently on.** `PartyBroadcaster`
-  uses `broadcast_refresh_to`, so every client re-renders *its own* URL. This is why browse state
-  lives in the URL (below) — it makes the open listing survive a broadcast by construction.
-- **`data-turbo-permanent` elements are carried forward and never re-rendered by the server
-  again.** Exactly two have it: `#search-input-wrap` (protects in-progress typing from a morph)
-  and `#toasts` (keeps in-flight messages from being wiped). Both hold transient *client* state.
-  Never put derived state inside it: the old "In: <label>" scope chip lived there, was toggled
-  only by JS, and so stayed stuck on a browse you had already left after a back-navigation (the
-  hidden `browse=` field did the same, silently scoping searches). Anything derivable from the URL
-  is server-rendered instead. The frame itself is **not** permanent — that would pin its content
-  across history navigation.
+State reaches clients as a **signal, never as markup**. `PartyBroadcaster` broadcasts one custom
+Turbo stream action, `reload_frame` (registered in `app/javascript/stream_actions.js`), and the
+client refetches that frame's own `src`:
+
+| frame | `src` | reloads on |
+|---|---|---|
+| `#queue` | `/party/queue` | `PartyBroadcaster.queue_changed` — add, remove, re-deal, badge |
+| `#now-playing` | `/party/now_playing` | `.player_changed` — track, play/pause/stop, seek, skip vote |
+| `#player-volume` | `/party/volume` | `.volume_changed` — volume only |
+
+`.track_changed` = player + queue. All served by `PartyController`; the shell renders the frames
+**empty** (`_app.html.erb`), so a browse page carries no queue or player markup and costs no queue
+query.
+
+**Why a signal and not the HTML.** The markup is per-viewer — whose rows get a ✕, who may promote,
+whose skip button says "skip now". One server-rendered copy broadcast to the whole party can never
+be right for everybody, so each client renders its own with its own cookies. This is the reason the
+obvious `broadcast_replace_to` is wrong here.
+
+**Never reintroduce `broadcast_refresh_to`.** It made every client re-fetch and morph its *whole
+current page* on every change: a ±2% volume tap re-rendered everyone's open browse listing (728 KB
+on Albums). It hit the actor too — `turbo_stream_refresh_tag` suppresses your own refresh by
+matching `Turbo.current_request_id`, and the broadcast comes from the **player daemon**, which has
+no request id. That is also why controllers used to return a duplicate `turbo_stream.update` for
+the actor; they no longer need to, because a `reload_frame` broadcast reaches the actor like
+everyone else.
+
+Four bugs came from that refresh being too broad — the scope chip going stale, scroll jumping to
+the top on someone else's add, the toast re-animating, typing wiped mid-search. All four are gone
+by construction: **nothing re-renders the page unprompted any more**, so `data-turbo-permanent` is
+gone from `#search-input-wrap` and `#toasts`, `search_sync.js` is deleted (its job folded back into
+`scope_controller.js`), and the toast deadline hack with it. Before adding a permanent element,
+check whether something is broadcasting too broadly instead.
+
+### Other Hotwire gotchas
+
+- The player-bar frames are `display: contents` so `.player-bar`'s grid can lay out rows that live
+  in two different frames — the volume has to sit at the right of the controls row, not under it.
+- Player POSTs answer `204`; the visible result arrives as the daemon's broadcast. A `button_to`
+  inside a frame is fine with that.
+- `volume_controller` **flushes** its debounced POST on `disconnect()`. The frame reloads on every
+  volume change including somebody else's, which tears the controller down — clearing the timer
+  there would swallow a tap still in its debounce.
+- `progress_controller` resyncs on the **item id**, not on `positionMs`: the daemon persists
+  position once a second, so resyncing on it dragged the bar back every time the frame reloaded.
+- The `<title>` is rendered twice from `document_title` — into `<head>` for the first paint, and
+  into the now-playing frame, which is the only thing that reloads on a track change
+  (`page_title_controller`). The head is never re-rendered after load.
 - Anything with the `hidden` attribute needs an explicit `.foo[hidden] { display: none }` if the
   class sets `display` — class beats the UA rule and the element stays visible.
-
-## Known design debt — the update path
-
-`broadcast_refresh_to` is the **only** way state reaches clients, so every change re-renders every
-client's whole page and each piece of client state has to defend itself against that. Four bugs so
-far were all this same cause: the scope chip going stale, scroll jumping to the top on someone
-else's add, the toast re-animating and resetting its timer, and typing being wiped mid-search.
-`data-turbo-permanent` is the symptom, not the design — it exists purely to carve exceptions out of
-a refresh that is too broad.
-
-It also fans out: one add fires several refreshes in a row (enqueue → daemon `queue_changed` →
-`play_item` → precache), each a full re-fetch for every connected browser. There are ~18
-`PartyBroadcaster.refresh` call sites, most of them meaning "something about the queue changed".
-
-The fix is targeted `turbo_stream` updates for what actually changes — `#queue` and `#now-playing`
-are already isolated partials with stable ids — leaving whole-page refresh for the rare case that
-needs it. Deliberately not done yet: it is a rewrite of the update path. **Before patching another
-"element X went stale / flickered / reset" bug, check whether it is really this.**
 
 ## Browsing — URL is the state
 
@@ -229,8 +249,8 @@ the URL and back/forward/reload/link-sharing all work.
 **Every browse URL must answer twice.** `render_frame_or_page` (ApplicationController): a
 `turbo_frame_request?` gets the bare frame, anything else gets the whole app shell with that
 content already in the frame. The "anything else" is not hypothetical — it's deep links, reloads,
-history restores, *and every morph refresh*. `library`/`history`/`search` used to redirect to root
-on a full-page visit; that breaks the moment the URL starts changing.
+history restores. `library`/`history`/`search` used to redirect to root on a full-page visit; that
+breaks the moment the URL starts changing.
 
 `shared/_frame_content` is the single definition of what's inside the frame, rendered by both the
 frame responses and the shell, so the two can't drift. The tabs (⌂ / Library / History) live
@@ -238,8 +258,9 @@ frame responses and the shell, so the two can't drift. The tabs (⌂ / Library /
 they're re-rendered on every navigation and are server-correct with no JS.
 
 `scope_controller.js` only handles what genuinely can't be server-rendered — frame navigation does
-not re-render the controls above the frame, so it pushes scope/query/placeholder into them. It is
-no longer the *only* writer, so a missed connect degrades to "briefly stale", not "stuck forever".
+not re-render the controls above the frame, so it pushes scope/query/placeholder into them. The
+server renders the same values on a full load, so a missed connect degrades to "briefly stale", not
+"stuck forever".
 
 **Library modes:** `all` (songs only, no listing — 22k rows is not a browse), `artists`, `albums`
 (flat across artists, grouped by `(artist, album)` since titles repeat), `folders`. A scoped search
@@ -297,7 +318,10 @@ healthcheck on `/up`, and whatever name a guest reached the box by.
   as the OS user" so a fresh clone runs. `.env` (loaded by `dotenv-rails` in development and
   test, *and* by `docker compose`) is what puts this box back on port **5433** as
   `dbuser`/`dbpass` and points `PARTY_MUSIC_DIR` at `/home/rhitu/Music`. Delete a line from
-  `.env` and you get the stranger's defaults — including a suddenly library-less app.
+  `.env` and you get the stranger's defaults — including a suddenly library-less app. That is
+  not hypothetical: `.env` used to carry a *separate* `MUSIC_DIR` for Docker and leave
+  `PARTY_MUSIC_DIR` blank, so the library was on under compose and silently off on the next
+  systemd restart. There is now **one** setting; compose remaps it to `/music` itself.
 - There is no host allowlist any more: any name or IP that reaches the port gets in. Access is
   controlled by where the app listens — `WEB_BIND` for the container, `bin/rails server -b`
   outside it.

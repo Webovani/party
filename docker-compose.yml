@@ -26,16 +26,17 @@ x-app: &app
     PARTY_DB_USER: ${POSTGRES_USER:-party}
     PARTY_DB_PASSWORD: ${POSTGRES_PASSWORD:-party}
     PARTY_DB_NAME: ${POSTGRES_DB:-party_production}
-    # Empty when MUSIC_DIR is unset — that is the switch for a YouTube-only
-    # box: no Library tab, no browsing, search asks YouTube alone.
-    PARTY_MUSIC_DIR: ${MUSIC_DIR:+/music}
+    # A HOST path in .env; the library is always mounted at /music inside, so
+    # compose rewrites it. Empty is the switch for a YouTube-only box: no Library
+    # tab, no browsing, search asks YouTube alone.
+    PARTY_MUSIC_DIR: ${PARTY_MUSIC_DIR:+/music}
     PARTY_CACHE_DIR: /data/cache
     PARTY_MPV_SOCKET: /data/run/party-mpv.sock
   volumes: &app-volumes
     # Read-only: the app only ever indexes and plays from the library. With
-    # MUSIC_DIR unset this resolves to an empty named volume and the app runs
-    # without a library at all (PARTY_MUSIC_DIR below goes blank with it).
-    - ${MUSIC_DIR:-empty_music}:/music:ro
+    # PARTY_MUSIC_DIR unset this resolves to an empty named volume and the app
+    # runs without a library at all (the rewrite above goes blank with it).
+    - ${PARTY_MUSIC_DIR:-empty_music}:/music:ro
     # Downloaded YouTube audio. Shared: jobs write it, player and web read it,
     # and the absolute path is stored in the DB — so keep this mount stable.
     - youtube_cache:/data/cache
@@ -106,7 +107,7 @@ services:
       PULSE_SERVER: unix:/run/pulse/native
       PULSE_COOKIE: /run/pulse/cookie
     volumes:
-      - ${MUSIC_DIR:-empty_music}:/music:ro
+      - ${PARTY_MUSIC_DIR:-empty_music}:/music:ro
       - youtube_cache:/data/cache
       # mpv's JSON IPC socket — private to this container, but it must live on a
       # filesystem where a unix socket can be created.
@@ -131,6 +132,6 @@ volumes:
   pgdata:
   youtube_cache:
   player_run:
-  # Stands in for the library when MUSIC_DIR is unset, so /music is always a
+  # Stands in for the library when PARTY_MUSIC_DIR is unset, so /music is always a
   # valid (if empty) mount and compose never has to conditionally include one.
   empty_music:

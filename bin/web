@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Boot Puma on the port and interface from .env — the same two knobs
+# docker-compose.yml reads, so .env is one answer for both deployments.
+#
+# Values are read, not sourced: .env is also a compose env file and holds
+# passwords, and sourcing it would execute whatever is in it. Blank counts as
+# unset — `WEB_BIND=` means "every interface", as ${WEB_BIND:-0.0.0.0} does in
+# compose — and a missing .env falls back the same way.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+# Last assignment wins, matching dotenv.
+env_value() {
+  [ -f .env ] || return 0
+  sed -n "s/^$1=//p" .env | tail -1
+}
+
+bind="$(env_value WEB_BIND)"
+port="$(env_value WEB_PORT)"
+
+exec bin/rails server -b "${bind:-0.0.0.0}" -p "${port:-3000}"

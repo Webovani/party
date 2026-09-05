@@ -20,7 +20,7 @@ docker compose up -d --build  # first run also creates the schema
 | `SECRET_KEY_BASE` | required — `openssl rand -hex 64` |
 | `PULSE_SOCKET` | the host's audio socket — `echo $XDG_RUNTIME_DIR/pulse/native` |
 | `PUID` / `PGID` | your uid/gid (`id -u`, `id -g`) — must match the socket's owner |
-| `MUSIC_DIR` | music library path, or empty to run YouTube-only |
+| `PARTY_MUSIC_DIR` | music library path, or empty to run YouTube-only |
 
 Open `http://<host>:3008` from any device on the LAN, set a nickname, queue
 something. With a library, index it once (and after adding music):
@@ -39,7 +39,7 @@ cutting a song, backups, and what to do when something does not start.
 
 | Key | Env | Default | Notes |
 |---|---|---|---|
-| `music_dir` | `PARTY_MUSIC_DIR` | *(blank)* | Local library root; degrades gracefully if unmounted. **Blank (the default) = no library at all**: YouTube-only, no Library tab or browsing (see below). |
+| `music_dir` | `PARTY_MUSIC_DIR` | *(blank)* | Local library root, a host path in both deployments (compose remaps it to `/music` inside the container); degrades gracefully if unmounted. **Blank (the default) = no library at all**: YouTube-only, no Library tab or browsing (see below). |
 | `cache_dir` | `PARTY_CACHE_DIR` | `tmp/youtube_cache` | Where YouTube audio is downloaded. Absolute paths are stored in the DB — moving it invalidates the cache. |
 | `mpv_ipc_socket` | `PARTY_MPV_SOCKET` | `tmp/party-mpv.sock` | mpv JSON IPC socket. |
 | `audio_device` | `PARTY_AUDIO_DEVICE` | (mpv default) | e.g. `alsa/hw:1,0`, `pulse/<sink>`. |

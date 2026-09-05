@@ -14,7 +14,7 @@ services:
     # `!override` replaces the base list instead of appending to it, so the
     # host's PulseAudio socket is not mounted at all.
     volumes: !override
-      - ${MUSIC_DIR:-empty_music}:/music:ro
+      - ${PARTY_MUSIC_DIR:-empty_music}:/music:ro
       - youtube_cache:/data/cache
       - player_run:/data/run
     # PULSE_SERVER is left pointing at /run/pulse/native, which no longer exists

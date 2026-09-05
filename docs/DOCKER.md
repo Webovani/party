@@ -28,7 +28,7 @@ Edit `.env` — the four that matter:
 | Variable | What to put there |
 |---|---|
 | `SECRET_KEY_BASE` | `openssl rand -hex 64` (or, once the image exists, `docker run --rm party:latest bin/rails secret`) |
-| `MUSIC_DIR` | host path of the library, e.g. `/srv/music` — **or leave empty (the default) for [YouTube-only](#25-running-without-a-music-library)** |
+| `PARTY_MUSIC_DIR` | host path of the library, e.g. `/srv/music` — **or leave empty (the default) for [YouTube-only](#25-running-without-a-music-library)**. Compose mounts it at `/music` and rewrites the variable to match, so the same setting works for a native run. |
 | `PULSE_SOCKET` | host audio socket — `echo $XDG_RUNTIME_DIR/pulse/native` |
 | `PUID` / `PGID` | **the desktop user's** uid/gid — `id -u` / `id -g` |
 
@@ -45,14 +45,14 @@ nickname, queue something.
 
 ## 2.5 Running without a music library
 
-The library is optional. Leave `MUSIC_DIR` empty and the box runs on YouTube
+The library is optional. Leave `PARTY_MUSIC_DIR` empty and the box runs on YouTube
 alone:
 
 ```bash
-MUSIC_DIR=
+PARTY_MUSIC_DIR=
 ```
 
-`/music` then resolves to an empty named volume and `PARTY_MUSIC_DIR` goes blank,
+`/music` then resolves to an empty named volume and the variable goes blank in the container,
 which is the actual switch (`PartyConfig.local_library?`). With it off:
 
 - the **Library** tab and every browse view are gone — `/library` redirects home,
@@ -62,7 +62,7 @@ which is the actual switch (`PartyConfig.local_library?`). With it off:
 - a `?browse=albums` URL falls back to a plain search instead of silently
   scoping it to a library that isn't there;
 - `party:scan` is a no-op that reports why, and **prunes nothing** — the existing
-  index survives, so switching the library back on is `MUSIC_DIR=…` plus a scan;
+  index survives, so switching the library back on is `PARTY_MUSIC_DIR=…` plus a scan;
 - local tracks still in the database are hidden from history and **refused at add
   time**. That last one matters: a missing local file would park the player on it
   forever, since nothing counts attempts and drops it the way a dead YouTube link
@@ -250,6 +250,6 @@ Turbo's live updates need it.
 | `mpv: could not connect to socket` right after boot | the host's Pulse socket was replaced (relogin); `docker compose up -d player` |
 | Nothing answers on `<host>:3008` | `WEB_BIND` names an interface that address does not reach. `jobs` and `player` wait on a healthy `web`, so the whole stack stays down with it. |
 | Tracks queue but never play, stuck "waiting" | the daemon parks on an unready head: check `jobs` logs for yt-dlp/ffmpeg failures |
-| Library search finds nothing | `party:scan` not run, or `MUSIC_DIR` points somewhere empty |
-| No Library tab at all | `MUSIC_DIR` is empty — that is YouTube-only mode (§2.5) |
+| Library search finds nothing | `party:scan` not run, or `PARTY_MUSIC_DIR` points somewhere empty |
+| No Library tab at all | `PARTY_MUSIC_DIR` is empty — that is YouTube-only mode (§2.5) |
 | YouTube search and downloads both fail | the box cannot reach youtube.com (DNS, firewall) — unrelated to Docker |
